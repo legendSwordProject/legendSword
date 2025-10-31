@@ -65,6 +65,16 @@ const bosses = {
     }
 };
 
+// 아이템 ID에 대한 사용자 친화적인 이름 매핑
+const itemDisplayNames = {
+    slimeCore: '슬라임 코어',
+    goblinEar: '고블린의 귀',
+    cursedBone: '저주받은 뼈',
+    fireEssence: '불의 정수',
+    frostCrystal: '서리의 결정',
+    swiftness: '가속 물약',
+    luck: '행운 물약'
+};
 // 유물 데이터 정의
 const artifacts = {
     ancientRunestone: {
@@ -370,11 +380,20 @@ const initialGameState = {
     },
     currentSkin: 'default',
     showToastPopups: true,
+    isCombatUiHidden: false,
     offeredMaterials: {
         ancientCore: false,
         venomGland: false,
         queensHeart: false,
         cursedSoul: false
+    },
+    unlockedZones: {
+        forest: true,
+        cave: false,
+        ruins: false,
+        volcano: false,
+        mountain: false,
+        rift: false
     }
 };
 
@@ -466,6 +485,42 @@ function showDamageText(damage, type = 'normal') {
     });
 }
 
+// --- 플로팅 재화 텍스트 기능 ---
+function showLootText(amount, type) {
+    const container = document.getElementById('loot-text-container');
+    if (!container) return;
+
+    const lootEl = document.createElement('div');
+    let iconKey = '';
+    let textClass = '';
+
+    if (type === 'soulShards') {
+        iconKey = 'coin';
+        textClass = 'shards';
+    } else {
+        // 몬스터 아이콘 대신, 재료 고유의 아이콘을 사용하도록 변경합니다.
+        // 복잡한 SVG(<defs> 포함)가 DOM에 추가될 때 발생하는 애니메이션 리셋 현상을 방지합니다.
+        iconKey = type;
+        textClass = 'material';
+    }
+
+    lootEl.className = `loot-text ${textClass}`;
+    lootEl.innerHTML = `<span class="icon" style="--icon-url: url('data:image/svg+xml,${encodeURIComponent(gameIcons[iconKey] || '')}')"></span> +${formatNumber(amount)}`;
+    // 텍스트가 겹치지 않도록 랜덤 오프셋을 적용합니다.
+    const offsetX = Math.random() * 30 - 15; // -15px to +15px
+    let offsetY = Math.random() * 30 - 15; // -15px to +15px
+
+    // 재료 아이템일 경우, 파편과 겹치지 않도록 시작 위치를 조금 더 높입니다.
+    if (type !== 'soulShards') {
+        offsetY -= 30;
+    }
+    lootEl.style.transform = `translate(-50%, 0) translate(${offsetX}px, ${offsetY}px)`;
+    
+    container.appendChild(lootEl);    
+
+    lootEl.addEventListener('animationend', () => lootEl.remove());
+}
+
 // --- 숫자 포맷팅 기능 ---
 function formatNumber(num) {
     if (num >= 1e12) { // 1조 (Trillion)
@@ -518,6 +573,13 @@ function loadGame() {
                              } else {
                                 gameState[key] = loadedState[key];
                              }
+                } else if (key === 'unlockedZones') {
+                    // unlockedZones는 initialGameState의 모든 키를 포함하도록 보장합니다.
+                    if (initialGameState[key]) {
+                        gameState[key] = Object.assign({}, initialGameState[key], loadedState[key]);
+                    } else {
+                        gameState[key] = loadedState[key];
+                    }
                         }else {
                             gameState[key] = Object.assign({}, gameState[key] || {}, loadedState[key]);
                         }
@@ -576,12 +638,39 @@ function fullReset() {
 }
 
 function resetGame() {
+    
     if (confirm("정말로 모든 진행 상황을 초기화하시겠습니까?")) {
-        localStorage.removeItem(saveKey);
-        // 데이터를 삭제한 후 페이지를 새로고침하여
-        // 오프닝 화면부터 다시 시작하도록 합니다.
-        window.location.reload();
+        fullReset();
+
+        setTimeout(() => {
+            localStorage.removeItem(saveKey);
+            // 데이터를 삭제한 후 페이지를 새로고침하여
+            // 오프닝 화면부터 다시 시작하도록 합니다.
+            window.location.reload();
+        }, 100); // 약간의 지연 후에 실행하여 UI가 멈추지 않도록 합니다.
+
     }
+}
+
+function toggleCombatUI() {
+    gameState.isCombatUiHidden = !gameState.isCombatUiHidden;
+    applyCombatUiVisibility();
+}
+
+function applyCombatUiVisibility() {
+    const title = document.querySelector('h1');
+    const summaryBar = document.getElementById('summary-bar');
+    const toggleButtonIcon = document.getElementById('icon-toggle-ui');
+    const combatStatsSummary = document.getElementById('combat-stats-summary');
+    const zoneSelectorContainer = document.getElementById('zone-selector-container');
+
+    title.classList.toggle('hidden-ui', gameState.isCombatUiHidden);
+    summaryBar.classList.toggle('hidden-ui', gameState.isCombatUiHidden);
+    combatStatsSummary.classList.toggle('hidden-ui', gameState.isCombatUiHidden);
+    zoneSelectorContainer.classList.toggle('hidden-ui', gameState.isCombatUiHidden);
+
+    toggleButtonIcon.innerHTML = gameState.isCombatUiHidden ? gameIcons.eyeSlash : gameIcons.eye;
+    document.getElementById('toggle-ui-button').setAttribute('data-tooltip', gameState.isCombatUiHidden ? 'UI 보이기' : 'UI 숨기기');
 }
 
 function toggleToastPopups() {
@@ -832,15 +921,25 @@ function updateDisplay() {
     zoneButtons.forEach(button => {
         const zoneId = button.dataset.zone;
         const zoneData = zones[zoneId];
-        const isLocked = zoneData && !zoneData.unlockCondition(gameState);
+        if (!zoneData) return;
+
+        const isNowUnlocked = zoneData.unlockCondition(gameState);
+        const wasUnlocked = gameState.unlockedZones[zoneId];
+
+        if (isNowUnlocked && !wasUnlocked) {
+            gameState.unlockedZones[zoneId] = true;
+            addLogMessage(`새로운 사냥터 [${zoneData.name}]이(가) 해금되었습니다!`, 'special');
+        }
+
+        const isLocked = !isNowUnlocked;
         if (isLocked) {
-            button.disabled = true;
+            button.classList.add('locked'); // disabled 대신 locked 클래스 사용
             const newTooltip = `해금 조건: ${typeof zoneData.unlockText === 'function' ? zoneData.unlockText(gameState) : zoneData.unlockText}`;
             if (button.getAttribute('data-tooltip') !== newTooltip) {
                 button.setAttribute('data-tooltip', newTooltip);
             }
         } else {
-            button.disabled = false;
+            button.classList.remove('locked');
             button.removeAttribute('data-tooltip');
         }
         // 현재 활성화된 사냥터 버튼 강조
@@ -854,31 +953,63 @@ function updateDisplay() {
     // 보스전 UI 업데이트
     const bossSummonButton = document.getElementById('boss-summon-button');
     const runFromBossButton = document.getElementById('run-from-boss-button');
-    let bossAvailableInZone = null;
+    let bossForCurrentZone = null;
     
-    // 현재 지역에서 소환 가능한, 아직 처치하지 않은 보스를 찾습니다.
+    // 현재 지역에 해당하는 보스를 찾습니다.
     for (const bossId in bosses) {
-        if (bosses[bossId].zone === gameState.currentZone && !gameState.bosses[bossId].isDefeated) {
-            bossAvailableInZone = bossId;
-            break; // 첫 번째로 찾은 보스를 대상으로 설정
+        if (bosses[bossId].zone === gameState.currentZone) {
+            bossForCurrentZone = bossId;
+            break;
         }
     }
 
-    if (bossAvailableInZone && !gameState.currentBoss) { // 보스전 중이 아닐 때만 소환 버튼 표시
+    if (!gameState.currentBoss) { // 보스전 중이 아닐 때만 소환/이동 버튼 표시
         runFromBossButton.style.display = 'none';
-        const bossZone = bosses[bossAvailableInZone].zone;
-        const killsInZone = gameState.materials.monsterKillsByZone[bossZone];
-        const requiredKills = 100 * (gameState.prestigeLevel + 1);
-
         bossSummonButton.style.display = 'inline-block';
-        if (killsInZone >= requiredKills) {
-            bossSummonButton.disabled = false;
-            bossSummonButton.textContent = `보스 소환: ${bosses[bossAvailableInZone].name}`;
-            bossSummonButton.onclick = () => startBossFight(bossAvailableInZone);
-        } else {
-            bossSummonButton.disabled = true;
-            bossSummonButton.textContent = `보스 소환 (${killsInZone}/${requiredKills})`;
-            bossSummonButton.onclick = null;
+
+        if (bossForCurrentZone) {
+            if (gameState.bosses[bossForCurrentZone]?.isDefeated) {
+                // 보스를 처치했다면, 다음 지역으로 이동하는 버튼을 표시합니다.
+                const zoneIds = Object.keys(zones);
+                const currentZoneIndex = zoneIds.indexOf(gameState.currentZone);
+                const nextZoneId = zoneIds[currentZoneIndex + 1];
+
+                if (nextZoneId && zones[nextZoneId]) {
+                    bossSummonButton.disabled = false;
+                    bossSummonButton.textContent = `${zones[nextZoneId].name}으로 이동`;
+                    bossSummonButton.onclick = () => changeZone(nextZoneId);
+                } else {
+                    // 다음 지역이 없으면 (예: 마지막 지역) 처치 완료만 표시합니다.
+                    bossSummonButton.disabled = true;
+                    bossSummonButton.textContent = `${bosses[bossForCurrentZone].name} (처치 완료)`;
+                }
+            } else {
+                const bossZone = bosses[bossForCurrentZone].zone;
+                const killsInZone = gameState.materials.monsterKillsByZone[bossZone] || 0;
+                const requiredKills = 100 * (gameState.prestigeLevel + 1);
+
+                if (killsInZone >= requiredKills) {
+                    bossSummonButton.disabled = false;
+                    bossSummonButton.textContent = `${bosses[bossForCurrentZone].name} 소환`;
+                    bossSummonButton.onclick = () => startBossFight(bossForCurrentZone);
+                } else {
+                    bossSummonButton.disabled = true;
+                    bossSummonButton.textContent = `${bosses[bossForCurrentZone].name} (${killsInZone}/${requiredKills})`;
+                    bossSummonButton.onclick = null;
+                }
+            }
+        } else if (gameState.currentZone === 'forest') {
+            // 시작의 숲에는 보스가 없으므로, 다음 지역 해금 조건만 확인합니다.
+            const zoneIds = Object.keys(zones);
+            const currentZoneIndex = zoneIds.indexOf(gameState.currentZone);
+            const nextZoneId = zoneIds[currentZoneIndex + 1];
+            if (nextZoneId && zones[nextZoneId] && zones[nextZoneId].unlockCondition(gameState)) {
+                bossSummonButton.disabled = false;
+                bossSummonButton.textContent = `${zones[nextZoneId].name}으로 이동`;
+                bossSummonButton.onclick = () => changeZone(nextZoneId);
+            } else {
+                bossSummonButton.style.display = 'none'; // 조건 미충족 시 버튼 숨김
+            }
         }
     } else {
         runFromBossButton.style.display = gameState.currentBoss ? 'inline-block' : 'none';
@@ -915,7 +1046,13 @@ function updateDisplay() {
             bossHpBar.classList.add('boss-hp-low');
         }
 
-        document.getElementById('boss-hp-text').textContent = `${bossData.name} HP: ${formatNumber(gameState.currentBoss.hp)} / ${formatNumber(gameState.currentBoss.maxHp)}`;
+        const bossHpTextElement = document.getElementById('boss-hp-text');
+        // 모바일 화면에서는 %로, 데스크톱에서는 전체 숫자로 표시합니다.
+        if (window.innerWidth <= 768) {
+            bossHpTextElement.textContent = `${bossData.name} HP: ${hpPercent.toFixed(1)}%`;
+        } else {
+            bossHpTextElement.textContent = `${bossData.name} HP: ${formatNumber(gameState.currentBoss.hp)} / ${formatNumber(gameState.currentBoss.maxHp)}`;
+        }
         document.getElementById('boss-timer').style.display = 'block';
         document.getElementById('boss-time-left').textContent = bossTimeLeft;
     } else {
@@ -1005,6 +1142,7 @@ function initializeIcons() {
     document.getElementById('icon-offline-reward').innerHTML = gameIcons.hourglassOfTime;
     document.getElementById('zone-icon-cave').innerHTML = gameIcons.zoneCave;
     document.getElementById('zone-icon-ruins').innerHTML = gameIcons.zoneRuins;
+    document.getElementById('icon-toggle-ui').innerHTML = gameIcons.eye;
     document.getElementById('zone-icon-volcano').innerHTML = gameIcons.zoneVolcano;
     document.getElementById('zone-icon-mountain').innerHTML = gameIcons.zoneMountain;
     document.getElementById('zone-icon-rift').innerHTML = gameIcons.dimensionalShadow;
@@ -1088,6 +1226,12 @@ function buyItem(item, quantity) {
         return;
     }
 
+    // 구매 전 능력치 스냅샷
+    const oldPassiveStats = calculatePassiveStats();
+    const oldDps = calculateDps(oldPassiveStats.currentStats, oldPassiveStats.attackInterval, oldPassiveStats.attacksPerSecond);
+    const oldCritChance = oldPassiveStats.currentStats.critChance;
+    const oldAttacksPerSecond = parseFloat(oldPassiveStats.attacksPerSecond);
+
     const singleItemCost = Math.max(1, Math.round(baseCost));
     let buyQuantity = quantity;
 
@@ -1105,15 +1249,40 @@ function buyItem(item, quantity) {
 
     if (gameState.soulShards >= totalCost) {
         gameState.soulShards -= totalCost;
+        let purchasedItemName = itemDisplayNames[item] || item;
+
         if (isPotion) {
             gameState.potions[item] += buyQuantity;
+            addLogMessage(`${purchasedItemName} ${formatNumber(buyQuantity)}개 구매 완료!`, 'normal');
         } else {
             gameState.materials[item] += buyQuantity;
+            // 구매 후 능력치 스냅샷
+            const newPassiveStats = calculatePassiveStats();
+            const newDps = calculateDps(newPassiveStats.currentStats, newPassiveStats.attackInterval, newPassiveStats.attacksPerSecond);
+            const newCritChance = newPassiveStats.currentStats.critChance;
+            const newAttacksPerSecond = parseFloat(newPassiveStats.attacksPerSecond);
+
+            // 증가량 계산
+            const dpsIncrease = newDps - oldDps;
+            const critChanceIncrease = (newCritChance - oldCritChance) * 100; // %로 변환
+            const apsIncrease = newAttacksPerSecond - oldAttacksPerSecond;
+
+            let statChanges = [];
+            if (dpsIncrease > 0) statChanges.push(`DPS +${formatNumber(dpsIncrease)}`);
+            if (critChanceIncrease > 0) statChanges.push(`치명타 확률 +${critChanceIncrease.toFixed(2)}%`);
+            if (apsIncrease > 0) statChanges.push(`공격 속도 +${apsIncrease.toFixed(2)}/초`);
+
+            if (statChanges.length > 0) {
+                addLogMessage(`${purchasedItemName} ${formatNumber(buyQuantity)}개 구매 완료! (${statChanges.join(', ')})`, 'special');
+            } else {
+                addLogMessage(`${purchasedItemName} ${formatNumber(buyQuantity)}개 구매 완료!`, 'normal');
+            }
         }
         updateDisplay();
     } else {
         addLogMessage(`영혼의 파편이 부족합니다! (필요: ${formatNumber(totalCost)})`, 'error');
     }
+    closeAllOverlays();
 }
 
 function useSwiftnessPotion() {
@@ -1245,7 +1414,9 @@ function changeZone(zoneName) {
 
     // 해금 조건 확인
     if (zones[zoneName] && !zones[zoneName].unlockCondition(gameState)) {
-        addLogMessage("아직 이 지역으로 이동할 수 없습니다.", 'error');
+        // 잠긴 사냥터를 클릭하면 해금 조건을 토스트 메시지로 보여줍니다.
+        const unlockText = typeof zones[zoneName].unlockText === 'function' ? zones[zoneName].unlockText(gameState) : zones[zoneName].unlockText;
+        addLogMessage(`해금 조건: ${unlockText}`, 'error');
         return;
     }
 
@@ -1267,28 +1438,25 @@ function changeZone(zoneName) {
 function runGameLoop() {
     if (gameState.isGameFinished || isResetting) return;
 
+    // 실제 공격이 발생했을 때만 애니메이션과 데미지 텍스트를 표시합니다.
+    triggerAnimation('sword-container', 'attack-animation');
+    let hasAttacked = false; // 공격 발생 여부를 추적하는 플래그
+
     const now = Date.now();    
     let { currentStats, attackInterval: baseAttackInterval, attacksPerSecond } = calculatePassiveStats(); // Get base values
 
-    // 가속 물약 효과
+    // 가속 물약 효과    
     if (gameState.isPotionActive) {
         const speedMultiplier = gameState.artifacts.hourglassOfTime ? 4 : 2;
         baseAttackInterval /= speedMultiplier; // Apply potion effect to the base interval
     }
 
     // 마지막 공격 시간으로부터 attackInterval만큼 지났는지 확인
-    if (now - lastAttackTime < baseAttackInterval) { // Use the potentially modified interval
-        return; // 아직 공격할 시간이 아니면 함수 종료
+    // 여러 번의 공격이 밀렸을 경우를 처리하기 위해 while 루프 사용
+    while (now >= lastAttackTime + baseAttackInterval) {
+        lastAttackTime += baseAttackInterval; // 다음 공격 시간을 예약합니다.
+        hasAttacked = true; // 공격이 발생했음을 표시
     }
-    // 루프 지연이 너무 길어져(예: 백그라운드 탭) 공격이 한번에 몰아서 실행되는 것을 방지합니다.
-    // lastAttackTime이 현재 시간보다 너무 과거이면 현재 시간으로 재설정합니다.
-    if (now > lastAttackTime + baseAttackInterval * 2) {
-        lastAttackTime = now;
-    }
-    lastAttackTime += baseAttackInterval; // 다음 공격 시간을 예약합니다.
-    
-    // 총 공격 횟수 증가
-    gameState.totalAttacks++;
 
     // 공격 속도에 맞춰 애니메이션 속도 조절
     const swordContainer = document.getElementById('sword-container');
@@ -1298,6 +1466,11 @@ function runGameLoop() {
 
     // --- 데미지 계산 ---
     let currentAttackPower = currentStats.attackPower; // 이 변수는 이 함수 내에서만 사용됩니다.
+    if (!hasAttacked) {
+        return; // 공격이 발생하지 않았으면 여기서 루프를 종료합니다.
+    }
+    gameState.totalAttacks++; // 실제 공격이 발생했을 때만 카운트 증가
+
     // 대장장이의 숫돌 유물 효과
     if (gameState.artifacts.blacksmithsWhetstone) {
         currentAttackPower *= 1.10;
@@ -1351,8 +1524,6 @@ function runGameLoop() {
     // 회차 피해량 보너스 적용
     const prestigeDamageBonus = 1 + (gameState.prestigeLevel * 0.01);
     totalDamage *= prestigeDamageBonus;
-
-    triggerAnimation('sword-container', 'attack-animation');
 
     // 진화 패시브 스킬 처리
     if (gameState.evolutionLevel >= 1) {
@@ -1488,14 +1659,14 @@ function runGameLoop() {
             // 영혼 수확 및 회차 특전 보너스 적용
             soulReward *= (1 + (currentStats.soulReapLevel * 0.5)); // 유효 영혼 수확 레벨 사용
             soulReward *= (1 + gameState.prestigeLevel);
+            showLootText(soulReward, 'soulShards');
             gameState.soulShards += soulReward;
-            addLogMessage(`영혼의 파편 +${formatNumber(soulReward)}`, 'normal');
             triggerAnimation('soul-shards-count', 'pulse-animation');
 
             // 재료 드랍
             let currentDropChance = activeZone.dropChance * (1 + (gameState.prestigeLevel * 0.005));
             if (gameState.isLuckPotionActive) {
-                currentDropChance *= 1.5;
+                currentDropChance *= 1.5; // 행운 물약 효과
             }
             // 행운의 편자 유물 효과
             if (gameState.artifacts.luckyHorseshoe) {
@@ -1503,7 +1674,7 @@ function runGameLoop() {
             }
             if (activeZone.material && Math.random() < currentDropChance) {
                 gameState.materials[activeZone.material]++;
-                addLogMessage(`✨ ${activeZone.name}에서 [${activeZone.material}] 획득!`, 'special');
+                showLootText(1, activeZone.material);
                 triggerAnimation(`${activeZone.material}-count`, 'pulse-animation');
             }
 
@@ -1659,15 +1830,20 @@ function initializeGame() {
     document.getElementById('main-container').style.display = 'flex';
     document.getElementById('nav-bar').style.display = 'flex';
     document.getElementById('summary-bar').style.display = 'flex';
-    // 첫 몬스터 생성
-    const monsterMaxHp = zones[gameState.currentZone].monsterHp * (1 + (gameState.prestigeLevel * 0.5));
-    currentMonster.hp = monsterMaxHp;
 
     loadGame();
     calculateOfflineRewards(); // 오프라인 보상 계산
 
+    // 무한 루프 방지를 위해 게임 시작 및 오프라인 보상 계산 후 마지막 공격 시간을 현재로 초기화합니다.
+    lastAttackTime = Date.now();
+
     initializeIcons();
     updateDisplay();
+    applyCombatUiVisibility(); // UI 숨김 상태 적용
+
+    // 첫 몬스터 생성
+    const monsterMaxHp = zones[gameState.currentZone].monsterHp * (1 + (gameState.prestigeLevel * 0.5));
+    currentMonster.hp = monsterMaxHp;
 
     // 새로고침 시 활성화된 물약 상태 복원
     if (gameState.isPotionActive) {
@@ -1791,8 +1967,8 @@ document.body.addEventListener('click', (event) => {
     // event.target에서 가장 가까운 [data-tooltip] 속성을 가진 부모 요소를 찾습니다.
     const tooltipElement = event.target.closest('[data-tooltip]');
 
-    // 툴팁 요소가 존재하고, 모바일 환경(hover 미지원)일 경우에만 실행합니다.
-    if (tooltipElement && window.matchMedia("(hover: none)").matches) {
+    // 툴팁 요소가 존재하고, 모바일 환경(hover 미지원)이며, 사냥터 버튼이 아닐 경우에만 실행합니다.
+    if (tooltipElement && window.matchMedia("(hover: none)").matches && !tooltipElement.hasAttribute('data-zone')) {
         const tooltipText = tooltipElement.getAttribute('data-tooltip');
         if (tooltipText) {
             // 토스트 팝업으로 툴팁 내용을 보여줍니다.
@@ -1843,7 +2019,7 @@ function calculatePassiveStats() {
     }
 
     // 최종 공격 간격 재계산
-    attackInterval = 1000 / attacksPerSecond;
+    attackInterval = Math.max(1, 1000 / attacksPerSecond); // 무한 루프 방지를 위해 최소 1ms 보장
 
     return { currentStats: stats, attackInterval: attackInterval, attacksPerSecond: attacksPerSecond.toFixed(2) };
 }
@@ -2005,17 +2181,21 @@ function changeSkin() {
 }
 
 function updateSwordAppearance() {
+    const swordIconWrapper = document.getElementById('sword-icon-wrapper');
+    if (!swordIconWrapper) return;
+
     let swordIconKey = 'sword'; // 기본값
     if (gameState.currentSkin !== 'default' && gameState.unlockedSkins[gameState.currentSkin]) {
         swordIconKey = gameState.currentSkin;
-    } else if (gameState.evolutionLevel >= 3) {
-        swordIconKey = 'swordEvolved3';
-    } else if (gameState.evolutionLevel >= 2) {
-        swordIconKey = 'swordEvolved2';
-    } else if (gameState.evolutionLevel === 1) {
-        swordIconKey = 'swordEvolved1';
+    } else {
+        switch (gameState.evolutionLevel) {
+            case 1: swordIconKey = 'swordEvolved1'; break;
+            case 2: swordIconKey = 'swordEvolved2'; break;
+            case 3: swordIconKey = 'swordEvolved3'; break;
+        }
     }
-    document.getElementById('sword-container').innerHTML = gameIcons[swordIconKey];
+
+    swordIconWrapper.innerHTML = gameIcons[swordIconKey];
 }
 
 function updateEvolutionButton() {

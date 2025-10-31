@@ -102,7 +102,12 @@
             <h2>사냥터: <span id="current-zone-display">시작의 숲</span></h2>
             <p id="zone-kill-count-display" class="zone-kill-count"></p>
             <div id="battle-display">
-                <div id="sword-container"></div>
+                <div id="sword-area">
+                    <div id="sword-container">
+                        <div id="sword-icon-wrapper"></div>
+                    </div>
+                    <div id="loot-text-container"></div>
+                </div>
                 <div>
                     <div class="monster-hp-bar-container">
                         <div id="monster-hp-bar" class="monster-hp-bar"></div>
@@ -115,6 +120,9 @@
                 </div>
             </div>
             <div id="potion-use-zone">
+                <button id="toggle-ui-button" onclick="toggleCombatUI()" data-tooltip="UI 숨기기/보이기">
+                    <span class="icon" id="icon-toggle-ui"></span>
+                </button>
                 <button id="swiftness-potion-button" onclick="useSwiftnessPotion()" data-tooltip="가속 물약 사용">
                     <div class="potion-cooldown"></div>
                     <span class="icon" id="icon-swiftness-potion"></span>
@@ -168,21 +176,23 @@
     </div>
 
     <div id="ending-screen" style="display: none;">
-        <div id="final-sword-container" style="width: 200px; height: 200px;"></div>
-        <h2>The End</h2>
-        <p>마침내 모든 혼돈의 근원인 '차원 포식자'를 물리쳤습니다. 당신은 잃어버렸던 모든 힘을 되찾고, 전설의 검 '소울 블레이드'로서 완전한 모습으로 깨어났습니다. 당신의 영혼은 이제 평온을 찾았고, 세상에는 다시 한번 평화가 찾아왔습니다.</p>
-        <p>플레이해주셔서 감사합니다.</p>
-        <div id="new-game-plus-rewards" class="panel-zone" style="margin-top: 20px; text-align: left; max-width: 400px;">
-            <h4>다음 회차 시작 보상</h4>
-            <p>계승자의 증표: <span id="ngp-prestige-level"></span> 레벨</p>
-            <div id="prestige-bonus-display" style="font-size: 12px; color: #8fbc8f; margin-left: 20px; border-left: 2px solid #8fbc8f; padding-left: 10px; margin-top: 5px; margin-bottom: 5px;">
-                <p> - 계승자의 힘 (모든 피해): +<span id="ngp-damage-bonus">0</span>%</p>
-                <p> - 계승자의 행운 (재료 획득률): +<span id="ngp-luck-bonus">0</span>%</p>
+        <div class="overlay-content">
+            <div id="final-sword-container" style="width: 200px; height: 200px; margin: 0 auto;"></div>
+            <h2>The End</h2>
+            <p>마침내 모든 혼돈의 근원인 '차원 포식자'를 물리쳤습니다. 당신은 잃어버렸던 모든 힘을 되찾고, 전설의 검 '소울 블레이드'로서 완전한 모습으로 깨어났습니다. 당신의 영혼은 이제 평온을 찾았고, 세상에는 다시 한번 평화가 찾아왔습니다.</p>
+            <p>플레이해주셔서 감사합니다.</p>
+            <div id="new-game-plus-rewards" class="panel-zone" style="margin-top: 20px; text-align: left; max-width: 400px; margin-left: auto; margin-right: auto;">
+                <h4>다음 회차 시작 보상</h4>
+                <p>계승자의 증표: <span id="ngp-prestige-level"></span> 레벨</p>
+                <div id="prestige-bonus-display" style="font-size: 12px; color: #8fbc8f; margin-left: 20px; border-left: 2px solid #8fbc8f; padding-left: 10px; margin-top: 5px; margin-bottom: 5px;">
+                    <p> - 계승자의 힘 (모든 피해): +<span id="ngp-damage-bonus">0</span>%</p>
+                    <p> - 계승자의 행운 (재료 획득률): +<span id="ngp-luck-bonus">0</span>%</p>
+                </div>
+                <p>계승자의 유산 (보너스 파편): +<span id="ngp-bonus-shards">0</span></p>
+                <p id="ngp-new-artifact-container" style="display: none;">새로운 유물 획득: <span id="ngp-new-artifact"></span></p>
             </div>
-            <p>계승자의 유산 (보너스 파편): +<span id="ngp-bonus-shards">0</span></p>
-            <p id="ngp-new-artifact-container" style="display: none;">새로운 유물 획득: <span id="ngp-new-artifact"></span></p>
+            <button onclick="startNewGamePlus()">새로운 여정 시작 (회차 플레이)</button>
         </div>
-        <button onclick="startNewGamePlus()">새로운 여정 시작 (회차 플레이)</button>
     </div>
 
     <!-- 오버레이 메뉴들 -->
@@ -257,7 +267,6 @@
                     <div class="button-set">
                         <button onclick="buyItem('slimeCore', 1)">x1</button>
                         <button onclick="buyItem('slimeCore', 10)">x10</button>
-                        <button onclick="buyItem('slimeCore', 100)">x100</button>
                         <button onclick="buyItem('slimeCore', 'max')">MAX</button>
                     </div>
                 </div>
@@ -266,7 +275,6 @@
                     <div class="button-set">
                         <button onclick="buyItem('goblinEar', 1)">x1</button>
                         <button onclick="buyItem('goblinEar', 10)">x10</button>
-                        <button onclick="buyItem('goblinEar', 100)">x100</button>
                         <button onclick="buyItem('goblinEar', 'max')">MAX</button>
                     </div>
                 </div>
@@ -275,7 +283,6 @@
                     <div class="button-set">
                         <button onclick="buyItem('cursedBone', 1)">x1</button>
                         <button onclick="buyItem('cursedBone', 10)">x10</button>
-                        <button onclick="buyItem('cursedBone', 100)">x100</button>
                         <button onclick="buyItem('cursedBone', 'max')">MAX</button>
                     </div>
                 </div>
