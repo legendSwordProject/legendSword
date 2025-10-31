@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- SEO Meta Tags -->
+    <title>전설의 검 키우기 - 방치형 RPG</title>
+    <meta name="description" content="전설의 검을 진화시키고 강력한 보스를 물리치세요! 영혼의 파편을 모아 검을 강화하고, 다양한 재료로 새로운 능력을 해금하는 중독성 있는 방치형 클리커 RPG 게임입니다.">
+    <meta name="keywords" content="방치형 게임, 클리커 게임, RPG, 검 키우기, 전설의 검, idle game, clicker game, sword evolution">
+    <meta name="author" content="Your Name or Company">
+
+    <!-- Open Graph (OG) Meta Tags for Social Sharing -->
+    <meta property="og:title" content="전설의 검 키우기 - 방치형 RPG">
+    <meta property="og:description" content="전설의 검을 진화시키고 강력한 보스를 물리치세요! 중독성 있는 방치형 클리커 RPG 게임을 지금 바로 즐겨보세요.">
+    <meta property="og:type" content="website">
+    <!-- TODO: 게임을 대표하는 멋진 이미지를 업로드하고 여기에 전체 URL을 입력하세요. 예: https://your-game-url.com/images/og-image.png -->
+    <meta property="og:image" content="https://example.com/images/og-image.png"> 
+    <!-- TODO: 게임이 배포된 URL을 입력하세요. -->
+    <meta property="og:url" content="https://your-game-url.com/">
+
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="전설의 검 키우기 - 방치형 RPG">
+    <meta name="twitter:description" content="전설의 검을 진화시키고 강력한 보스를 물리치세요! 중독성 있는 방치형 클리커 RPG 게임을 지금 바로 즐겨보세요.">
+    <!-- TODO: 트위터 카드용 이미지 URL을 입력하세요. OG 이미지와 동일해도 좋습니다. -->
+    <meta name="twitter:image" content="https://example.com/images/og-image.png">
+
+    <!-- Favicon (Final Sword Icon) -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cg transform='rotate(45 50 50)'%3E%3Cdefs%3E%3ClinearGradient id='gradFinal' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23fff' /%3E%3Cstop offset='50%25' stop-color='%23ffeb3b' /%3E%3Cstop offset='100%25' stop-color='%23ffc107' /%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M48,0 h4 l10,70 h-24 l10,-70 z' fill='url(%23gradFinal)' stroke='%23fff' stroke-width='1.5'/%3E%3Cpath d='M30,70 h40 v15 h-40 z' fill='%23fff'/%3E%3Ccircle cx='50' cy='77.5' r='8' fill='%239c27b0'/%3E%3C/g%3E%3C/svg%3E">
+
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+</head>
+<body>
+    <h1>전설의 검: 깨어나는 영혼</h1>
+
+    <div id="screen-flash-overlay"></div>
+
+    <div id="toast-container"></div>
+
+    <div id="opening-screen">
+        <div id="opening-text">
+            <p style="animation-delay: 0s;">먼 옛날, 세상을 지키는 전설의 검 '소울 블레이드'가 있었습니다.</p>
+            <p style="animation-delay: 2s;">하지만 강력한 저주로 인해 검은 산산조각 나 힘을 잃고, 그 영혼(플레이어)은 깊은 잠에 빠져들었습니다.</p>
+            <p style="animation-delay: 4s;">수백 년 후, 몬스터들이 세상을 뒤덮기 시작했을 때, 한 모험가가 녹슨 당신을 발견합니다.</p>
+            <p style="animation-delay: 6s;">이제 당신(검의 영혼)은 스스로 움직여 몬스터를 사냥하고, 잃어버린 힘을 되찾아 세상을 정화하는 여정을 시작해야 합니다.</p>
+        </div>
+        <button id="start-game-button">여정 시작</button>
+    </div>
+
+    <div id="main-container" style="display: none;">
+        <div id="zone-selector-container" class="panel-zone">
+            <div id="zone-buttons">
+                <button onclick="changeZone('forest')" data-zone="forest" data-tooltip="시작의 숲"><span class="icon" id="zone-icon-forest"></span></button>
+                <button onclick="changeZone('cave')" data-zone="cave" data-tooltip="어두운 동굴"><span class="icon" id="zone-icon-cave"></span></button>
+                <button onclick="changeZone('ruins')" data-zone="ruins" data-tooltip="저주받은 폐허"><span class="icon" id="zone-icon-ruins"></span></button>
+                <button onclick="changeZone('volcano')" data-zone="volcano" data-tooltip="화산 지대"><span class="icon" id="zone-icon-volcano"></span></button>
+                <button onclick="changeZone('mountain')" data-zone="mountain" data-tooltip="혹한의 설산"><span class="icon" id="zone-icon-mountain"></span></button>
+                <button onclick="changeZone('rift')" data-zone="rift" data-tooltip="차원의 균열"><span class="icon" id="zone-icon-rift"></span></button>
+            </div>
+        </div>
+
+        <div id="hunting-ground" class="panel-zone">
+            <!-- 상단 요약 바 -->
+            <div id="summary-bar">
+                <div class="summary-item" data-tooltip="영혼의 파편">
+                    <span class="icon" id="summary-icon-shards"></span>
+                    <span id="summary-shards-count">0</span>
+                </div>
+                <div class="summary-item" data-tooltip="슬라임 코어">
+                    <span class="icon" id="summary-icon-slime-core"></span>
+                    <span id="summary-slime-core-count">0</span>
+                </div>
+                <div class="summary-item" data-tooltip="고블린의 귀">
+                    <span class="icon" id="summary-icon-goblin-ear"></span>
+                    <span id="summary-goblin-ear-count">0</span>
+                </div>
+                <div class="summary-item" data-tooltip="저주받은 뼈">
+                    <span class="icon" id="summary-icon-cursed-bone"></span>
+                    <span id="summary-cursed-bone-count">0</span>
+                </div>
+                <div class="summary-item" data-tooltip="불의 정수">
+                    <span class="icon" id="summary-icon-fire-essence"></span>
+                    <span id="summary-fire-essence-count">0</span>
+                </div>
+                <div class="summary-item" data-tooltip="서리의 결정">
+                    <span class="icon" id="summary-icon-frost-crystal"></span>
+                    <span id="summary-frost-crystal-count">0</span>
+                </div>
+                <div class="summary-item" data-tooltip="고대의 지도 조각">
+                    <span class="icon" id="summary-icon-map-piece"></span>
+                    <span id="summary-map-piece-count">0</span>
+                </div>
+                <div class="summary-item" data-tooltip="차원의 파편">
+                    <span class="icon" id="summary-icon-dimensional-fragment"></span>
+                    <span id="summary-dimensional-fragment-count">0</span>
+                </div>
+            </div>
+            <h2>사냥터: <span id="current-zone-display">시작의 숲</span></h2>
+            <p id="zone-kill-count-display" class="zone-kill-count"></p>
+            <div id="battle-display">
+                <div id="sword-container"></div>
+                <div>
+                    <div class="monster-hp-bar-container">
+                        <div id="monster-hp-bar" class="monster-hp-bar"></div>
+                    </div>
+                    <div id="monster-wrapper">
+                        <div id="monster-container"></div>
+                        <div id="vfx-container"></div>
+                        <div id="damage-text-container"></div>
+                    </div>
+                </div>
+            </div>
+            <div id="potion-use-zone">
+                <button id="swiftness-potion-button" onclick="useSwiftnessPotion()" data-tooltip="가속 물약 사용">
+                    <div class="potion-cooldown"></div>
+                    <span class="icon" id="icon-swiftness-potion"></span>
+                    <span class="potion-count" id="swiftness-potion-btn-count">0</span>
+                </button>
+                <button id="luck-potion-button" onclick="useLuckPotion()" data-tooltip="행운 물약 사용">
+                    <div class="potion-cooldown"></div>
+                    <span class="icon" id="icon-luck-potion-btn"></span>
+                    <span class="potion-count" id="luck-potion-btn-count">0</span>
+                </button>
+                <button id="evolution-trigger-button" onclick="evolveSword()" data-tooltip="진화 가능!" style="display: none;">
+                    <span class="icon" id="icon-evolution-trigger"></span>
+                </button>
+                <button id="change-skin-button" onclick="changeSkin()" data-tooltip="획득한 검 스킨으로 외형을 변경합니다." style="display: none;">스킨 변경</button>
+            </div>
+            <div id="combat-stats-summary">
+                <div class="summary-item" data-tooltip="초당 공격력 (DPS)">
+                    <span class="icon" id="summary-icon-dps"></span>
+                    <span id="summary-dps-count">0</span>
+                </div>
+                <div class="summary-item" data-tooltip="총 공격 횟수">
+                    <span class="icon" id="summary-icon-total-attacks"></span>
+                    <span id="summary-total-attacks-display">0</span>
+                </div>
+                <div class="summary-item" data-tooltip="치명타 확률">
+                    <span class="icon" id="summary-icon-crit-chance"></span>
+                    <span id="summary-crit-chance-display">0%</span>
+                </div>
+                <div class="summary-item" data-tooltip="초당 공격 횟수">
+                    <span class="icon" id="summary-icon-attack-speed"></span>
+                    <span id="summary-attack-speed-display">1.0</span>
+                </div>
+            </div>
+            <div id="sacrifices-summary-zone" style="display: none;">
+                <div id="sacrifices-summary-list">
+                    <!-- 제물 아이콘이 여기에 추가됩니다. -->
+                </div>
+            </div>
+            <div id="boss-zone">
+                <button id="boss-summon-button" style="display: none;"></button>
+                <button id="run-from-boss-button" onclick="runFromBoss()" style="display: none;">도망가기</button>
+                <div id="boss-hp-bar-container" style="display: none;">
+                    <div id="boss-hp-bar"></div>
+                    <span id="boss-hp-text"></span>
+                </div>
+                <div id="boss-timer" style="display: none;">
+                    남은 시간: <span id="boss-time-left">60</span>초
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="ending-screen" style="display: none;">
+        <div id="final-sword-container" style="width: 200px; height: 200px;"></div>
+        <h2>The End</h2>
+        <p>마침내 모든 혼돈의 근원인 '차원 포식자'를 물리쳤습니다. 당신은 잃어버렸던 모든 힘을 되찾고, 전설의 검 '소울 블레이드'로서 완전한 모습으로 깨어났습니다. 당신의 영혼은 이제 평온을 찾았고, 세상에는 다시 한번 평화가 찾아왔습니다.</p>
+        <p>플레이해주셔서 감사합니다.</p>
+        <div id="new-game-plus-rewards" class="panel-zone" style="margin-top: 20px; text-align: left; max-width: 400px;">
+            <h4>다음 회차 시작 보상</h4>
+            <p>계승자의 증표: <span id="ngp-prestige-level"></span> 레벨</p>
+            <div id="prestige-bonus-display" style="font-size: 12px; color: #8fbc8f; margin-left: 20px; border-left: 2px solid #8fbc8f; padding-left: 10px; margin-top: 5px; margin-bottom: 5px;">
+                <p> - 계승자의 힘 (모든 피해): +<span id="ngp-damage-bonus">0</span>%</p>
+                <p> - 계승자의 행운 (재료 획득률): +<span id="ngp-luck-bonus">0</span>%</p>
+            </div>
+            <p>계승자의 유산 (보너스 파편): +<span id="ngp-bonus-shards">0</span></p>
+            <p id="ngp-new-artifact-container" style="display: none;">새로운 유물 획득: <span id="ngp-new-artifact"></span></p>
+        </div>
+        <button onclick="startNewGamePlus()">새로운 여정 시작 (회차 플레이)</button>
+    </div>
+
+    <!-- 오버레이 메뉴들 -->
+    <div id="status-overlay" class="overlay" onclick="closeAllOverlays()">
+        <div class="overlay-content" onclick="event.stopPropagation()">
+            <div id="status-bar" class="panel-zone">
+                <button class="close-button" onclick="closeAllOverlays()">X</button>
+                <h3><span class="icon" id="icon-status" data-tooltip="현재 캐릭터의 모든 정보를 보여줍니다."></span>상태</h3>
+                <p><span class="icon" id="icon-shards"></span>영혼의 파편: <span id="soul-shards-count">0</span></p>
+                <p><span class="icon" id="icon-dps" data-tooltip="공격 속도, 치명타, 스킬 등 모든 요소를 반영한 1초당 평균 기대 피해량입니다."></span>총 초당 공격력: <span id="total-dps-display">0</span></p>
+                <p><span class="icon" id="icon-slime-core"></span>슬라임 코어: <span id="slime-core-count">0</span></p>
+                <p><span class="icon" id="icon-goblin-ear"></span>고블린의 귀: <span id="goblin-ear-count">0</span></p>
+                <p><span class="icon" id="icon-cursed-bone"></span>저주받은 뼈: <span id="cursed-bone-count">0</span></p>
+                <p><span class="icon" id="icon-ancient-core"></span>고대의 핵: <span id="ancient-core-count">0</span></p>
+                <p><span class="icon" id="icon-venom-gland"></span>맹독 주머니: <span id="venom-gland-count">0</span></p>
+                <p><span class="icon" id="icon-cursed-soul"></span>저주받은 영혼: <span id="cursed-soul-count">0</span></p>
+                <p><span class="icon" id="icon-fire-essence"></span>불의 정수: <span id="fire-essence-count">0</span></p>
+                <p><span class="icon" id="icon-frost-crystal"></span>서리의 결정: <span id="frost-crystal-count">0</span></p>
+                <p><span class="icon" id="icon-queens-heart"></span>여왕의 심장: <span id="queens-heart-count">0</span></p>
+                <p><span class="icon" id="icon-dimensional-fragment"></span>차원의 파편: <span id="dimensional-fragment-count">0</span></p>
+                <p><span class="icon" id="icon-map-piece"></span>고대의 지도 조각: <span id="map-piece-count">0</span></p>
+                <p><span class="icon" id="icon-potion"></span>가속 물약: <span id="swiftness-potion-count">0</span>개</p>
+                <p><span class="icon" id="icon-luck-potion"></span>행운 물약: <span id="luck-potion-count">0</span>개</p>
+                <hr>
+                <p><span class="icon" id="icon-prestige"></span>계승자의 증표: <span id="prestige-level-display">0</span> 레벨</p>
+                <div id="prestige-bonus-display" style="display: none;">
+                    <p> - 계승자의 힘: 모든 피해 <span id="prestige-damage-bonus">0</span>% 증가</p>
+                    <p> - 계승자의 행운: 아이템 획득률 <span id="prestige-luck-bonus">0</span>% 증가</p>
+                </div>
+                <hr>
+                <h3><span class="icon" id="icon-stats-details"></span>상세 능력치</h3>
+                <p><span class="icon" id="icon-permanent-atk"></span>영구 공격력: <span id="permanent-atk-display">1</span></p>
+                <p><span class="icon" id="icon-total-attacks"></span>총 공격 횟수: <span id="total-attacks-display">0</span></p>
+                <p><span class="icon" id="icon-crit-chance"></span>치명타 확률: <span id="crit-chance-display">0</span>%</p>
+                <p><span class="icon" id="icon-crit-damage"></span>치명타 피해량: x<span id="crit-damage-display">1.5</span></p>
+                <p><span class="icon" id="icon-attack-speed"></span>공격 속도: <span id="attack-speed-display">1.0</span>/초</p>
+                <hr>
+                <h3><span class="icon" id="icon-skill-levels"></span>속성 레벨</h3>
+                <p><span class="icon" id="icon-poison-level"></span>독 레벨: <span id="poison-level-display">0</span> (초당 <span id="poison-dps-display">0</span> 파편)</p>
+                <p><span class="icon" id="icon-fire-level"></span>화염 레벨: <span id="fire-level-display">0</span> (화상 피해 <span id="fire-damage-display">0</span>)</p>
+                <p><span class="icon" id="icon-frost-level"></span>냉기 레벨: <span id="frost-level-display">0</span> (폭발 피해 <span id="frost-damage-display">0</span>)</p>
+                <p><span class="icon" id="icon-soul-reap-level"></span>영혼 수확 레벨: <span id="soul-reap-level-display">0</span> (획득량 <span id="soul-reap-bonus-display">0</span>% 증가)</p>
+                <p><span class="icon" id="icon-curse-level"></span>저주 레벨: <span id="curse-level-display">0</span> (추가 <span id="curse-dps-display">0</span> 파편)</p>
+                <hr>
+                <div id="conquest-zone">
+                    <h3>지역 정복 현황</h3>
+                    <p class="guide-text">각 지역의 몬스터를 목표치만큼 처치해야 보스에게 피해를 줄 수 있습니다. (목표치: 100 x 회차) 이후 100마리당 보스에게 주는 피해량이 10%씩 증가합니다.</p>
+                    <div id="conquest-status"></div>
+                </div>
+                <div id="offered-sacrifices-zone" style="display: none;">
+                    <h3><span class="icon" id="icon-sacrifices"></span>바쳐진 제물</h3>
+                    <p class="guide-text">3차 진화 후 특정 보스 재료를 획득하면 자동으로 제물로 바쳐져 영구 공격력이 2배가 됩니다.</p>
+                    <div id="offered-sacrifices-list"></div>
+                </div>
+                <hr>
+                <div id="artifact-zone" style="display: none;">
+                    <h3><span class="icon" id="icon-artifact"></span>획득한 유물</h3>
+                    <div id="artifact-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="shop-overlay" class="overlay" onclick="closeAllOverlays()">
+        <div class="overlay-content" onclick="event.stopPropagation()">
+            <div id="shop" class="panel-zone">
+                <button class="close-button" onclick="closeAllOverlays()">X</button>
+                <h3><span class="icon" id="icon-shop"></span>상점</h3>
+                <p class="shop-category">-- 아이템 구매 --</p>
+                <div class="action-group">
+                    <span data-tooltip="슬라임 코어를 개당 25 파편에 구매합니다.">슬라임 코어 구매</span>
+                    <div class="button-set">
+                        <button onclick="buyItem('slimeCore', 1)">x1</button>
+                        <button onclick="buyItem('slimeCore', 10)">x10</button>
+                        <button onclick="buyItem('slimeCore', 100)">x100</button>
+                        <button onclick="buyItem('slimeCore', 'max')">MAX</button>
+                    </div>
+                </div>
+                <div class="action-group">
+                    <span data-tooltip="고블린의 귀를 개당 75 파편에 구매합니다.">고블린 귀 구매</span>
+                    <div class="button-set">
+                        <button onclick="buyItem('goblinEar', 1)">x1</button>
+                        <button onclick="buyItem('goblinEar', 10)">x10</button>
+                        <button onclick="buyItem('goblinEar', 100)">x100</button>
+                        <button onclick="buyItem('goblinEar', 'max')">MAX</button>
+                    </div>
+                </div>
+                <div class="action-group">
+                    <span data-tooltip="저주받은 뼈를 개당 200 파편에 구매합니다.">저주받은 뼈 구매</span>
+                    <div class="button-set">
+                        <button onclick="buyItem('cursedBone', 1)">x1</button>
+                        <button onclick="buyItem('cursedBone', 10)">x10</button>
+                        <button onclick="buyItem('cursedBone', 100)">x100</button>
+                        <button onclick="buyItem('cursedBone', 'max')">MAX</button>
+                    </div>
+                </div>
+                <div class="action-group">
+                    <span data-tooltip="10초간 공격 속도를 2배로 만드는 가속 물약을 구매합니다.">가속 물약 구매</span>
+                    <div class="button-set">
+                        <button onclick="buyItem('swiftness', 1)">x1</button>
+                        <button onclick="buyItem('swiftness', 10)">x10</button>
+                        <button onclick="buyItem('swiftness', 'max')">MAX</button>
+                    </div>
+                </div>
+                <div class="action-group">
+                    <span data-tooltip="10초간 아이템 획득 확률을 1.5배로 만드는 행운 물약을 구매합니다.">행운 물약 구매</span>
+                    <div class="button-set">
+                        <button onclick="buyItem('luck', 1)">x1</button>
+                        <button onclick="buyItem('luck', 10)">x10</button>
+                        <button onclick="buyItem('luck', 'max')">MAX</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="achievements-overlay" class="overlay" onclick="closeAllOverlays()">
+        <div class="overlay-content" onclick="event.stopPropagation()">
+            <div id="achievement-container" class="panel-zone">
+                <button class="close-button" onclick="closeAllOverlays()">X</button>
+                <h3><span class="icon" id="icon-achievement"></span>도전 과제</h3>
+                <div id="achievement-panel">
+                    <!-- 도전 과제 목록이 여기에 동적으로 추가됩니다. -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="settings-overlay" class="overlay" onclick="closeAllOverlays()">
+        <div class="overlay-content" onclick="event.stopPropagation()">
+            <div id="settings-zone" class="panel-zone">
+                <button class="close-button" onclick="closeAllOverlays()">X</button>
+                <h3><span class="icon" id="icon-settings"></span>설정</h3>
+                <button onclick="openOverlay('guide-overlay')">게임 설명</button>
+                <button onclick="saveGame()">수동 저장</button>
+                <button id="toast-toggle-button" onclick="toggleToastPopups()">토스트 팝업 끄기</button>
+                <button onclick="resetGame()">게임 초기화</button>                
+            </div>
+        </div>
+    </div>
+
+    <div id="guide-overlay" class="overlay" onclick="closeAllOverlays()">
+        <div class="overlay-content" onclick="event.stopPropagation()">
+            <div id="guide-panel" class="panel-zone">
+                <button class="close-button" onclick="closeAllOverlays()">X</button>
+                <h3><span class="icon" id="icon-guide"></span>게임 설명</h3>
+                <div id="guide-content" style="text-align: left; line-height: 1.6;">
+                    <h4>- 초당 공격력 (DPS)</h4>
+                    <p>모든 공격력 관련 수치(기본 공격력, 치명타, 각종 스킬 및 속성 피해 등)를 종합하여 계산된 평균적인 초당 피해량입니다.</p>
+                    
+                    <h4>- 추가 피해 (독, 저주, 화상)</h4>
+                    <p>몬스터의 체력과 무관하게, 피해량만큼 직접 '영혼의 파편'을 획득합니다. 이 보상에는 회차 보너스가 적용됩니다.</p>
+
+                    <h4>- 진화 (패시브 스킬)</h4>
+                    <p>특정 보스 재료를 소모하여 검을 진화시키고 강력한 패시브 스킬을 얻습니다.</p>
+                    <ul>
+                        <li><strong>1차 진화 (연쇄 번개):</strong> 5번 공격마다 추가 번개 피해를 줍니다.</li>
+                        <li><strong>2차 진화 (지옥불 일격):</strong> 10번 공격마다 강력한 광역 화염 피해를 줍니다.</li>
+                        <li><strong>3차 진화 (혹한의 일격):</strong> 7번 공격마다 추가 냉기 피해를 줍니다.</li>
+                    </ul>
+
+                    <h4>- 보스전 (지역 정복)</h4>
+                    <p>각 지역의 몬스터를 '100 x (회차+1)'만큼 처치하여 '정복' 상태를 달성해야 해당 지역의 보스에게 피해를 줄 수 있습니다. 정복 이후 100마리를 추가로 처치할 때마다 보스에게 주는 피해량이 10%씩 영구적으로 증가합니다.</p>
+                    <p><strong>*차원 포식자 보너스:</strong> '차원의 파편' 보유량에 비례하여 '차원 포식자'에게 주는 피해량이 증가합니다.</p>
+
+                    <h4>- 회차 플레이 (계승자의 증표)</h4>
+                    <p>엔딩 후 시작되며, 레벨에 따라 적들이 강해지고 보상이 증가합니다. 또한 다음과 같은 영구 패시브 효과를 얻습니다.</p>
+                    <ul>
+                        <li><strong>계승자의 힘:</strong> 레벨당 모든 피해량 1% 증가</li>
+                        <li><strong>계승자의 행운:</strong> 레벨당 재료 획득 확률 0.5% 증가</li>
+                    </ul>
+
+                    <h4>- 유물</h4>
+                    <p>특정 회차 레벨 도달 시 획득하는 영구적인 특수 아이템입니다.</p>
+
+                    <h4>- 재료 효과 (자동 강화)</h4>
+                    <p>재료는 보유하는 것만으로도 검의 능력치를 자동으로 강화시켜줍니다. (대부분 로그 함수 형태로 적용되어, 초반에 효율이 높습니다.)</p>
+                    <ul>
+                        <li><strong>슬라임 코어:</strong> 공격력(제곱근 비례)과 독 레벨을 올려줍니다.</li>
+                        <li><strong>고블린의 귀:</strong> 치명타 확률/피해량과 공격 속도를 올려줍니다.</li>
+                        <li><strong>저주받은 뼈:</strong> 저주 피해량과 영혼 수확 레벨을 올려줍니다.</li>
+                        <li><strong>불의 정수:</strong> 화염 레벨을 올려주며, 2차 진화 재료로 사용됩니다.</li>
+                        <li><strong>서리의 결정:</strong> 냉기 레벨을 올려주며, 3차 진화 재료로 사용됩니다.</li>
+                    </ul>
+
+                    <h4>- 스킨 효과</h4>
+                    <p>도전 과제 보상으로 획득한 일부 스킨은 착용 시 특별한 보너스 효과를 제공합니다.</p>
+                    <ul>
+                        <li><strong>피의 검:</strong> 최종 공격 속도 +1</li>
+                        <li><strong>흑요석 검:</strong> 최종 공격 속도 +3</li>
+                        <li><strong>신성한 검:</strong> 최종 공격 속도 +5</li>
+                        <li><strong>타락한 검:</strong> 최종 공격 속도 +7</li>
+                        <li><strong>차원의 검:</strong> 최종 공격 속도 +10</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="offline-reward-overlay" class="overlay">
+        <div class="overlay-content" onclick="event.stopPropagation()">
+            <div id="offline-reward-panel" class="panel-zone">
+                <button class="close-button" onclick="closeOfflineRewardPopup()">X</button>
+                <h3><span class="icon" id="icon-offline-reward"></span>오프라인 보상</h3>
+                <p id="offline-time-text"></p>
+                <div id="offline-rewards-list"></div>
+                <button onclick="closeOfflineRewardPopup()">확인</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- 하단 내비게이션 바 -->
+    <div id="nav-bar" style="display: none;">
+        <button onclick="openOverlay('status-overlay')"><span class="icon" id="nav-icon-status"></span>상태</button>
+        <button onclick="openOverlay('shop-overlay')"><span class="icon" id="nav-icon-shop"></span>상점</button>
+        <button onclick="openOverlay('achievements-overlay')"><span class="icon" id="nav-icon-achievements"></span>과제</button>
+        <button onclick="openOverlay('settings-overlay')"><span class="icon" id="nav-icon-settings"></span>설정</button>
+    </div>
+
+    <script src="images.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
