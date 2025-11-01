@@ -68,4 +68,7 @@ const gameIcons = {
     zoneRuins: `<svg viewBox="0 0 100 100"><path d="M30,90 L30,40 L40,30 L40,90 Z M60,90 L60,50 L70,40 L70,90Z" fill="#808080" stroke="#696969" stroke-width="3"/><rect x="20" y="85" width="60" height="10" fill="#808080"/></svg>`,
     zoneVolcano: `<svg viewBox="0 0 100 100"><path d="M10,90 L40,30 H60 L90,90 Z" fill="#dc3545"/><path d="M45,30 Q50,20 55,30 T60,35 T50,40 T40,35 T45,30" fill="#ffeb3b"/></svg>`,
     zoneMountain: `<svg viewBox="0 0 100 100"><path d="M10,90 L50,20 L90,90 Z M30,90 L60,50 L80,90 Z" fill="#add8e6"/><path d="M50,20 L55,30 L50,35 L45,30 Z" fill="#fff"/></svg>`
+    ,
+    musicOn: `<svg viewBox="0 0 100 100"><path d="M20,70 L20,30 Q50,20 80,30 L80,60 Q50,80 20,70 Z" fill="#fff"/><circle cx="20" cy="70" r="10" fill="#fff"/><circle cx="80" cy="60" r="10" fill="#fff"/><line x1="20" y1="70" x2="80" y2="60" stroke="#fff" stroke-width="8"/></svg>`,
+    musicOff: `<svg viewBox="0 0 100 100"><path d="M20,70 L20,30 Q50,20 80,30 L80,60 Q50,80 20,70 Z" fill="#888"/><circle cx="20" cy="70" r="10" fill="#888"/><circle cx="80" cy="60" r="10" fill="#888"/><line x1="20" y1="70" x2="80" y2="60" stroke="#888" stroke-width="8"/><line x1="10" y1="90" x2="90" y2="10" stroke="red" stroke-width="10"/></svg>`
 };

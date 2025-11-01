@@ -99,7 +99,10 @@
                     <span id="summary-dimensional-fragment-count">0</span>
                 </div>
             </div>
-            <h2>사냥터: <span id="current-zone-display">시작의 숲</span></h2>
+            <div class="zone-title-container">
+                <h2>사냥터: <span id="current-zone-display">시작의 숲</span></h2>
+                <button id="music-toggle-button" onclick="toggleMusic()" data-tooltip="음악 켜기/끄기"></button>
+            </div>
             <p id="zone-kill-count-display" class="zone-kill-count"></p>
             <div id="battle-display">
                 <div id="sword-area">
@@ -321,8 +324,7 @@
     <div id="settings-overlay" class="overlay" onclick="closeAllOverlays()">
         <div class="overlay-content" onclick="event.stopPropagation()">
             <div id="settings-zone" class="panel-zone">
-                <button class="close-button" onclick="closeAllOverlays()">X</button>
-                <h3><span class="icon" id="icon-settings"></span>설정</h3>
+                <button class="close-button" onclick="closeAllOverlays()">X</button> <h3><span class="icon" id="icon-settings"></span>설정</h3>
                 <button onclick="openOverlay('guide-overlay')">게임 설명</button>
                 <button onclick="saveGame()">수동 저장</button>
                 <button id="toast-toggle-button" onclick="toggleToastPopups()">토스트 팝업 끄기</button>
@@ -411,6 +413,8 @@
     </div>
 
     <script src="images.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="sounds.js"></script>
     <script src="game.js"></script>
 </body>
 </html>

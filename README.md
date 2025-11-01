@@ -63,5 +63,7 @@
 ├── index.html       # 메인 HTML 파일, UI 구조 정의
 ├── style.css        # 게임의 모든 스타일과 애니메이션 정의
 ├── game.js          # 핵심 게임 로직, 상태 관리, UI 업데이트
-└── images.js        # 게임에 사용되는 모든 SVG 아이콘 데이터
+├── images.js        # 게임에 사용되는 모든 SVG 아이콘 데이터
+├── sounds.js        # 게임에 사용되는 모든 BGM 및 효과음 데이터
+└── LICENSE          # 프로젝트 MIT 라이선스 파일
 ```

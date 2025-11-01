@@ -103,7 +103,7 @@ const artifacts = {
     },
     blacksmithsWhetstone: {
         name: '대장장이의 숫돌',
-        description: "'공격력 강화'로 올린 모든 공격력의 10%만큼 추가 공격력을 얻습니다.",
+        description: "공격력 강화로 올린 모든 공격력의 10%만큼 추가 공격력을 얻습니다.",
         unlockLevel: 15,
         iconKey: 'blacksmithsWhetstone'
     },
@@ -396,6 +396,8 @@ const initialGameState = {
         rift: false
     }
 };
+let isMusicPlaying = false;
+let isAudioContextStarted = false;
 
 let currentMonster = {
     hp: 100
@@ -412,7 +414,10 @@ let chaliceIntervalId = null;
 let lastAttackTime = 0; // 마지막 공격 시간을 기록하여 정확한 공격 속도를 보장합니다.
 let swiftnessPotionTimeoutId = null;
 let luckPotionTimeoutId = null; // 물약 타이머 ID
+let musicParts = { melody: null, bass: null, harmony: null };
 let totalDamage = 0; // 데미지 계산을 위한 전역 변수
+let lastEffectTime = {}; // 효과음 중복 재생 방지를 위한 객체
+let sfxSynths = {}; // 효과음 신디사이저를 재사용하기 위한 객체
 
 // --- 전투 로그 기능 ---
 function addLogMessage(message, type = 'normal') {
@@ -698,7 +703,13 @@ function runFromBoss() {
     const bossName = bosses[gameState.currentBoss.id].name;
     addLogMessage(`😱 ${bossName}에게서 도망쳤습니다...`, 'error');
 
+    // 도망가기 효과음 재생
+    playSoundEffect('runAway');
+
     gameState.currentBoss = null;
+
+    // 일반 사냥터 음악으로 전환
+    playZoneMusic(gameState.currentZone);
 
     // 일반 몬스터로 다시 전환
     const monsterMaxHp = zones[gameState.currentZone].monsterHp * (1 + (gameState.prestigeLevel * 0.5));
@@ -1146,6 +1157,7 @@ function initializeIcons() {
     document.getElementById('zone-icon-volcano').innerHTML = gameIcons.zoneVolcano;
     document.getElementById('zone-icon-mountain').innerHTML = gameIcons.zoneMountain;
     document.getElementById('zone-icon-rift').innerHTML = gameIcons.dimensionalShadow;
+    document.getElementById('music-toggle-button').innerHTML = isMusicPlaying ? gameIcons.musicOn : gameIcons.musicOff;
     document.getElementById('icon-sacrifices').innerHTML = gameIcons.offering;
 }
 
@@ -1405,6 +1417,8 @@ function startBossFight(bossId) {
 
     gameState.currentBoss = { id: bossId, hp: bossHp, maxHp: bossHp, startTime: Date.now(), intervalId: intervalId, timerId: timerId };
     addLogMessage(`💀 ${bossData.name}이(가) 모습을 드러냈습니다!`, 'special');
+    playSoundEffect('bossSummon'); // 보스 등장 효과음 재생
+    playZoneMusic('boss'); // 보스전 음악 재생
     updateDisplay();
 }
 
@@ -1421,12 +1435,16 @@ function changeZone(zoneName) {
     }
 
     if (zones[zoneName]) {
+        // 사냥터 이동 효과음 재생
+        playSoundEffect('changeZone');
+
         gameState.currentZone = zoneName;
         // 지역 변경 시 새로운 몬스터 생성
         // 일반 몬스터 체력 증가율을 완화합니다. (예: 100% -> 50%)
         const monsterMaxHp = zones[zoneName].monsterHp * (1 + (gameState.prestigeLevel * 0.5));
         currentMonster.hp = monsterMaxHp;
         triggerAnimation('monster-container', 'monster-spawn-animation');
+        playZoneMusic(zoneName);
         closeAllOverlays();
         updateDisplay();
     } else {
@@ -1487,6 +1505,8 @@ function runGameLoop() {
         isCrit = true;
         finalAttackPower *= critDamage;
         triggerAnimation('monster-container', 'monster-shake-animation');
+        // 치명타 효과음 재생
+        playSoundEffect('critSlash');
         triggerAnimation('sword-container', 'crit-attack-animation');
     }
 
@@ -1605,6 +1625,9 @@ function runGameLoop() {
             const bossData = bosses[bossId];
             addLogMessage(`🏆 ${bossData.name}을(를) 처치했습니다!`, 'special');
 
+            // 보스 처치 효과음 재생
+            playSoundEffect('bossDefeat');
+
             // 보상 지급
             const prestigeMultiplier = 1 + gameState.prestigeLevel;
             let soulReward = bossData.reward.soulShards * prestigeMultiplier;
@@ -1633,8 +1656,12 @@ function runGameLoop() {
             if (bossId === 'dimensionEater') {
                 gameState.isGameFinished = true;
                 stopGameLoop(); // 게임 루프를 즉시 중지합니다.
+                playZoneMusic('ending'); // 엔딩 음악 재생
                 saveGame(); // 마지막 상태 저장
                 showEnding(); // 그 후 엔딩 화면을 표시합니다.
+            } else {
+                // 보스전이 끝났으므로 현재 지역의 음악으로 되돌립니다.
+                playZoneMusic(gameState.currentZone);
             }
 
             gameState.currentBoss = null;
@@ -1645,6 +1672,9 @@ function runGameLoop() {
 
         // 일반 몬스터에게 입힌 데미지를 표시
         showDamageText(totalDamage, isCrit ? 'crit' : 'normal');
+
+        // 일반 공격 효과음 재생 (치명타가 아닐 때)
+        // if (!isCrit) playSoundEffect('swordSlash');
 
         if (currentMonster.hp <= 0) {
             // 몬스터 처치 횟수 기록
@@ -1792,6 +1822,14 @@ function startNewGamePlus() {
     // 회차 플레이 시작
     document.getElementById('ending-screen').style.display = 'none';
     document.getElementById('main-container').style.display = 'flex'; // flex로 변경
+    // 엔딩 음악이 재생 중이었다면, 새로운 지역의 음악으로 전환합니다.
+
+    // 새로운 여정 시작 효과음 재생
+    playSoundEffect('newGamePlus');
+    if (isMusicPlaying) {
+        playZoneMusic(gameState.currentZone);
+    }
+
     document.getElementById('nav-bar').style.display = 'flex';
     document.getElementById('summary-bar').style.display = 'flex';
     addLogMessage(`계승자의 증표 Lv.${prestigeLevel} - 새로운 여정을 시작합니다!`, 'special');
@@ -1830,6 +1868,19 @@ function initializeGame() {
     document.getElementById('main-container').style.display = 'flex';
     document.getElementById('nav-bar').style.display = 'flex';
     document.getElementById('summary-bar').style.display = 'flex';
+    
+    // 사용자의 첫 상호작용 시 오디오 컨텍스트를 시작하도록 이벤트 리스너를 추가합니다.
+    initializeAudioContextOnFirstInteraction();
+
+    // 브라우저 탭이 비활성화되었다가 다시 활성화될 때 오디오 컨텍스트를 재개합니다.
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && isAudioContextStarted) {
+            if (Tone.context.state === 'suspended') {
+                Tone.context.resume();
+                console.log('AudioContext resumed on visibility change.');
+            }
+        }
+    });
 
     loadGame();
     calculateOfflineRewards(); // 오프라인 보상 계산
@@ -1840,6 +1891,11 @@ function initializeGame() {
     initializeIcons();
     updateDisplay();
     applyCombatUiVisibility(); // UI 숨김 상태 적용
+
+    // 음악 초기화 및 자동 재생 (사용자가 원할 경우)
+    if (isMusicPlaying) {
+        playZoneMusic(gameState.currentZone);
+    }
 
     // 첫 몬스터 생성
     const monsterMaxHp = zones[gameState.currentZone].monsterHp * (1 + (gameState.prestigeLevel * 0.5));
@@ -1953,6 +2009,30 @@ function checkSaveDataAndStart() {
         document.addEventListener('keydown', startGameFromOpening);
         document.addEventListener('mousedown', startGameFromOpening);
     }
+}
+
+function initializeAudioContextOnFirstInteraction() {
+    const startAudio = async () => {
+        if (isAudioContextStarted || typeof Tone === 'undefined') return;
+
+        try {
+            await Tone.start();
+            isAudioContextStarted = true;
+            console.log('AudioContext has been successfully started by user gesture.');
+            // 오디오 컨텍스트가 시작된 후, 음악이 켜져 있었다면 즉시 재생합니다.
+            if (isMusicPlaying) {
+                playZoneMusic(gameState.currentZone);
+            }
+        } catch (e) {
+            console.error("Could not start AudioContext: ", e);
+        }
+    };
+
+    // 사용자의 첫 상호작용(클릭 또는 키다운) 시 오디오를 시작하고, 이벤트 리스너는 한 번만 실행된 후 제거됩니다.
+    document.body.addEventListener('click', startAudio, { once: true });
+    document.body.addEventListener('keydown', startAudio, { once: true });
+    window.addEventListener('click', startAudio, { once: true, capture: true });
+    window.addEventListener('keydown', startAudio, { once: true, capture: true });
 }
 
 function closeOfflineRewardPopup() {
@@ -2169,6 +2249,9 @@ function changeSkin() {
     const unlockedSkins = Object.keys(gameState.unlockedSkins).filter(skin => gameState.unlockedSkins[skin]);
     if (unlockedSkins.length === 0) return;
 
+    // 스킨 변경 효과음 재생
+    playSoundEffect('changeSkin');
+
     const currentIndex = unlockedSkins.indexOf(gameState.currentSkin);
     let nextIndex = currentIndex + 1;
 
@@ -2235,4 +2318,138 @@ function updateEvolutionButton() {
     evolutionTriggerButton.style.display = canEvolve ? 'inline-block' : 'none';
 
     // 자동 제물 시스템으로 변경되었으므로, offeringZone 관련 로직은 제거합니다.
+}
+
+// --- 음악 제어 기능 ---
+function playZoneMusic(zoneId) {
+    if (!isMusicPlaying || typeof Tone === 'undefined') return;
+
+    // 기존 음악 중지
+    if (musicParts.melody) musicParts.melody.stop(0);
+    if (musicParts.bass) musicParts.bass.stop(0);
+    if (musicParts.harmony) musicParts.harmony.stop(0);
+
+    const musicData = backgroundMusic[zoneId];
+    if (!musicData) return;
+
+    Tone.Transport.bpm.value = musicData.bpm;
+
+    // 신디사이저 설정
+    const melodySynth = new Tone.Synth({
+        oscillator: { type: 'triangle8' },
+        envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 1 }
+    }).toDestination();
+
+    const bassSynth = new Tone.MonoSynth({
+        oscillator: { type: 'fmsine' },
+        envelope: { attack: 0.05, decay: 0.3, sustain: 0.4, release: 1.4 },
+        filterEnvelope: { attack: 0.05, decay: 0.1, sustain: 0.2, release: 2, baseFrequency: 80, octaves: 4 }
+    }).toDestination();
+
+    const harmonySynth = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: 'sine' },
+        envelope: { attack: 0.5, decay: 0.1, sustain: 0.9, release: 1.5 }
+    }).toDestination();
+    harmonySynth.volume.value = -12; // 하모니 볼륨을 약간 줄여 멜로디를 돋보이게 합니다.
+    // 파트 생성 및 시작
+    musicParts.melody = new Tone.Part((time, value) => {
+        melodySynth.triggerAttackRelease(value.note, value.duration, time);
+    }, musicData.melody);
+    musicParts.melody.loop = true;
+    musicParts.melody.loopEnd = musicData.loopEnd || '8m'; // 기본 루프 길이를 8마디로 설정
+    musicParts.melody.start(0);
+
+    musicParts.bass = new Tone.Part((time, value) => {
+        bassSynth.triggerAttackRelease(value.note, value.duration, time);
+    }, musicData.bass);
+    musicParts.bass.loop = true;
+    musicParts.bass.loopEnd = musicData.loopEnd || '8m';
+    musicParts.bass.start(0);
+
+    if (musicData.harmony) {
+        musicParts.harmony = new Tone.Part((time, value) => {
+            harmonySynth.triggerAttackRelease(value.note, value.duration, time);
+        }, musicData.harmony);
+        musicParts.harmony.loop = true;
+        musicParts.harmony.loopEnd = musicData.loopEnd || '8m';
+        musicParts.harmony.start(0);
+    }
+
+
+    Tone.Transport.start();
+}
+
+function playSoundEffect(effectId) {
+    // 오디오 컨텍스트가 시작되었고, 음악이 켜져 있을 때만 효과음 재생
+    if (!isAudioContextStarted || !isMusicPlaying || typeof Tone === 'undefined') return;
+
+    const effectData = soundEffects[effectId];
+    if (!effectData) return;
+
+    // 효과음 중복 재생 방지 로직
+    const now = Tone.now();
+    const throttleTime = 0.1; // 100ms. 이 시간 내에는 같은 효과음 중복 재생 안 함 (초당 10회)
+    if (lastEffectTime[effectId] && now - lastEffectTime[effectId] < throttleTime) {
+        return;
+    }
+    lastEffectTime[effectId] = now;
+
+    // 치명타일 경우, 타격음을 추가로 재생합니다. (스로틀링 체크 이후에 호출)
+    if (effectId === 'critSlash') {
+        playSoundEffect('critImpact');
+    }
+
+    if (effectData.type === 'noise') {
+        if (!sfxSynths[effectId]) {
+            sfxSynths[effectId] = new Tone.NoiseSynth({
+                noise: effectData.noise || { type: 'white' },
+                envelope: effectData.envelope,
+                filter: effectData.filter,
+                filterEnvelope: effectData.filterEnvelope,
+                volume: effectData.volume || 0
+            }).toDestination();
+        }
+        sfxSynths[effectId].triggerAttackRelease(effectData.duration || 0.5);
+    } else if (effectData.type === 'synth') {
+        if (!sfxSynths[effectId]) {
+            sfxSynths[effectId] = new Tone.Synth(effectData.synth).toDestination();
+        }
+        const now = Tone.now();
+        effectData.notes.forEach((note, index) => {
+            sfxSynths[effectId].triggerAttackRelease(note, effectData.duration, now + index * effectData.interval);
+        });
+    } else if (effectData.type === 'polysynth') {
+        if (!sfxSynths[effectId]) {
+            sfxSynths[effectId] = new Tone.PolySynth(Tone.Synth, effectData.synth).toDestination();
+        }
+        const now = Tone.now();
+        sfxSynths[effectId].triggerAttackRelease(effectData.notes, effectData.duration, now);
+    } else if (effectData.type === 'warp') {
+        if (!sfxSynths[effectId]) {
+            const synth = new Tone.Synth(effectData.synth).toDestination();
+            const freqEnv = new Tone.FrequencyEnvelope(effectData.frequencyEnvelope).connect(synth.frequency);
+            sfxSynths[effectId] = { synth, freqEnv };
+        }
+        sfxSynths[effectId].freqEnv.triggerAttackRelease(effectData.duration);
+        sfxSynths[effectId].synth.triggerAttackRelease(effectData.duration);
+    }
+}
+
+async function toggleMusic() {
+    const musicButton = document.getElementById('music-toggle-button');    
+    if (isMusicPlaying) {
+        isMusicPlaying = false;
+        Tone.Transport.stop();
+        musicButton.innerHTML = gameIcons.musicOff;
+    } else {
+        // 오디오 컨텍스트가 아직 시작되지 않았다면 시작합니다.
+        if (!isAudioContextStarted && Tone.context.state !== 'running') {
+            await Tone.start();
+            isAudioContextStarted = true;
+            console.log('AudioContext started by music toggle button.');
+        }
+        isMusicPlaying = true;
+        playZoneMusic(gameState.currentBoss ? 'boss' : gameState.currentZone);
+        musicButton.innerHTML = gameIcons.musicOn;
+    }
 }

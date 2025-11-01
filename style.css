@@ -44,6 +44,27 @@ h1 {
     max-width: 900px;
 }
 
+.zone-title-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: -10px; /* 아래 p 태그와의 간격 조정 */
+}
+
+#music-toggle-button {
+    width: 40px;
+    height: 40px;
+    padding: 8px;
+    background: none;
+    border: 1px solid #888;
+}
+
+#music-toggle-button:hover {
+    background: #444;
+    box-shadow: 0 0 10px #ffc107;
+}
+
 #battle-display {
     font-size: 60px;
     margin: 20px 0;
