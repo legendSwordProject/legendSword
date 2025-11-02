@@ -86,32 +86,38 @@ const artifacts = {
     chaliceOfLife: {
         name: '생명의 성배',
         description: '10초마다 현재 초당 공격력의 5배에 해당하는 영혼의 파편을 추가로 획득합니다.',
-        unlockLevel: 5,
+        unlockLevel: 4,
         iconKey: 'chaliceOfLife'
     },
     hourglassOfTime: {
         name: '시간의 모래시계',
-        description: '가속 물약의 공격 속도 증가 효과가 2배에서 4배로 증폭됩니다.',
+        description: '무기의 기본 초당 공격 횟수가 영구적으로 +2 증가합니다.',
         unlockLevel: 8,
         iconKey: 'hourglassOfTime'
     },
     tomeOfSecrets: {
         name: '비밀의 고서',
-        description: '치명타 피해량이 영구적으로 50% 증가합니다.',
-        unlockLevel: 10,
+        description: '치명타 발생 시, 10% 확률로 해당 치명타 피해량이 2배에서 10배 사이의 랜덤한 배율로 증폭됩니다.',
+        unlockLevel: 11,
         iconKey: 'tomeOfSecrets'
     },
     blacksmithsWhetstone: {
         name: '대장장이의 숫돌',
-        description: "공격력 강화로 올린 모든 공격력의 10%만큼 추가 공격력을 얻습니다.",
-        unlockLevel: 15,
+        description: "공격 시 0.5% 확률로 2초간 영구 공격력이 3배가 됩니다. (중복 발동 불가)",
+        unlockLevel: 14,
         iconKey: 'blacksmithsWhetstone'
     },
     luckyHorseshoe: {
-        name: '행운의 편자',
-        description: '모든 재료 아이템의 기본 획득 확률이 5% 증가합니다.',
-        unlockLevel: 20,
+        name: '행운의 편지',
+        description: '재료 아이템 획득 시, 1개 대신 1개에서 5개 사이의 랜덤한 개수를 획득합니다.',
+        unlockLevel: 19,
         iconKey: 'luckyHorseshoe'
+    },
+    blessingOfAncientGod: {
+        name: '고대 신의 축복',
+        description: '모든 유물의 발동 확률과 능력이 두 배로 증폭됩니다.',
+        unlockLevel: 25,
+        iconKey: 'blessingOfAncientGod'
     }
 };
 
@@ -155,12 +161,26 @@ const achievements = {
         reward: { permanentAtk: 10000 },
         rewardText: '영구 공격력 +10k'
     },
+    attack50000: {
+        name: '5만 번의 숙련',
+        description: '총 50,000회 공격 달성',
+        isCompleted: (state) => state.totalAttacks >= 50000,
+        reward: { permanentAtk: 50000 },
+        rewardText: '영구 공격력 +50k'
+    },
     attack100000: {
         name: '십만 번의 경지',
         description: '총 100,000회 공격 달성',
         isCompleted: (state) => state.totalAttacks >= 100000,
         reward: { permanentAtk: 100000 },
         rewardText: '영구 공격력 +100k'
+    },
+    attack500000: {
+        name: '5십만 번의 경지',
+        description: '총 500,000회 공격 달성',
+        isCompleted: (state) => state.totalAttacks >= 500000,
+        reward: { permanentAtk: 500000 },
+        rewardText: '영구 공격력 +500k'
     },
     attack1000000: {
         name: '백만 번의 전설',
@@ -345,14 +365,17 @@ const initialGameState = {
         hourglassOfTime: false,
         tomeOfSecrets: false,
         blacksmithsWhetstone: false,
-        luckyHorseshoe: false
+        luckyHorseshoe: false,
+        blessingOfAncientGod: false
     },
     completedAchievements: {
         reach100Atk: false,
         attack100: false,
         attack1000: false,
         attack10000: false,
+        attack50000: false,
         attack100000: false,
+        attack500000: false,
         attack1000000: false,
         reachPrestige1: false,
         firstEvolution: false,
@@ -383,6 +406,7 @@ const initialGameState = {
     floatingTextSettings: {
         normal: true,
         crit: true,
+        superCrit: true,
         fire: true,
         frost: true,
         lightning: true,
@@ -390,6 +414,7 @@ const initialGameState = {
         soulShards: true,
         material: true,
     },
+    isWhetstoneActive: false, // 대장장이 숫돌 효과 활성화 상태
     isCombatUiHidden: false,
     offeredMaterials: {
         ancientCore: false,
@@ -424,12 +449,17 @@ let chaliceIntervalId = null;
 let lastAttackTime = 0; // 마지막 공격 시간을 기록하여 정확한 공격 속도를 보장합니다.
 let swiftnessPotionTimeoutId = null;
 let luckPotionTimeoutId = null; // 물약 타이머 ID
+let whetstoneTimeoutId = null; // 숫돌 효과 타이머 ID
 let attacksThisSecond = 0; // 실제 초당 공격 횟수 측정을 위한 카운터
 let lastSecondTimestamp = 0; // 마지막으로 초당 공격 횟수를 업데이트한 시간
 let musicParts = { melody: null, bass: null, harmony: null };
 let totalDamage = 0; // 데미지 계산을 위한 전역 변수
 let lastEffectTime = {}; // 효과음 중복 재생 방지를 위한 객체
 let sfxSynths = {}; // 효과음 신디사이저를 재사용하기 위한 객체
+
+// --- 성능 최적화를 위한 오브젝트 풀링 ---
+const damageTextPool = [];
+const lootTextPool = [];
 
 // --- 전투 로그 기능 ---
 function addLogMessage(message, type = 'normal') {
@@ -482,27 +512,40 @@ function showVfx(effectClass) {
 
 // --- 플로팅 데미지 텍스트 기능 ---
 function showDamageText(damage, type = 'normal') {
-    // 개별 텍스트 설정 확인
-    if (!gameState.floatingTextSettings[type]) return;
+    // superCrit:배율 형식의 타입을 처리하기 위해 기본 타입만 추출
+    const baseType = type.split(':')[0];
+    if (!gameState.floatingTextSettings[baseType]) {
+        // 해당 타입의 텍스트 표시가 꺼져있으면 함수 종료
+        return;
+    }
 
-    const container = document.getElementById('damage-text-container');
-    if (!container) return;
+    const damageEl = damageTextPool.find(el => !el.dataset.active);
+    if (!damageEl) return; // 사용 가능한 풀 요소가 없으면 무시
 
-    const damageEl = document.createElement('div');
-    damageEl.className = `damage-text ${type}`;
+    damageEl.dataset.active = 'true';
+    damageEl.className = `damage-text ${type.startsWith('superCrit') ? 'superCrit' : type}`; // 애니메이션 클래스는 잠시 후 추가
 
-    // 타입에 따라 아이콘 추가
-    const iconKey = gameIcons[type];
-    if (iconKey) {
-        damageEl.innerHTML = `<span class="icon">${iconKey}</span>` + formatNumber(damage);
+    if (type.startsWith('superCrit')) {
+        const multiplier = parseFloat(type.split(':')[1]).toFixed(1);
+        damageEl.innerHTML = `${formatNumber(damage)} <span class="super-crit-multiplier">(x${multiplier}배!)</span>`;
     } else {
         damageEl.textContent = formatNumber(damage);
     }
-    container.appendChild(damageEl);
 
+    const offsetX = Math.random() * 40 - 20; // -20px to +20px
+    const offsetY = Math.random() * 20 - 10; // -10px to +10px
+    damageEl.style.transform = `translate(-50%) translate(${offsetX}px, ${offsetY}px)`;
+    damageEl.style.opacity = '1';
+
+    // 애니메이션 클래스를 추가하여 애니메이션 시작
+    damageEl.classList.add('float-up-animation');
+
+    // 애니메이션이 끝나면 풀로 반환 (한 번만 실행되도록 { once: true })
     damageEl.addEventListener('animationend', () => {
-        damageEl.remove();
-    });
+        damageEl.dataset.active = '';
+        damageEl.style.opacity = '0'; // 다음 사용을 위해 숨김
+        damageEl.classList.remove('float-up-animation');
+    }, { once: true });
 }
 
 // --- 플로팅 재화 텍스트 기능 ---
@@ -514,38 +557,38 @@ function showLootText(amount, type) {
         if (!gameState.floatingTextSettings.material) return;
     }
 
-    const container = document.getElementById('loot-text-container');
-    if (!container) return;
+    const lootEl = lootTextPool.find(el => !el.dataset.active);
+    if (!lootEl) return; // 사용 가능한 풀 요소가 없으면 무시
 
-    const lootEl = document.createElement('div');
+    lootEl.dataset.active = 'true';
     let iconKey = '';
     let textClass = '';
 
     if (type === 'soulShards') {
         iconKey = 'coin';
-        textClass = 'shards';
+        textClass = 'loot-text shards';
     } else {
-        // 몬스터 아이콘 대신, 재료 고유의 아이콘을 사용하도록 변경합니다.
-        // 복잡한 SVG(<defs> 포함)가 DOM에 추가될 때 발생하는 애니메이션 리셋 현상을 방지합니다.
         iconKey = type;
-        textClass = 'material';
+        textClass = 'loot-text material';
     }
 
-    lootEl.className = `loot-text ${textClass}`;
-    lootEl.innerHTML = `<span class="icon" style="--icon-url: url('data:image/svg+xml,${encodeURIComponent(gameIcons[iconKey] || '')}')"></span> +${formatNumber(amount)}`;
-    // 텍스트가 겹치지 않도록 랜덤 오프셋을 적용합니다.
-    const offsetX = Math.random() * 30 - 15; // -15px to +15px
-    let offsetY = Math.random() * 30 - 15; // -15px to +15px
+    lootEl.className = textClass;
+    lootEl.innerHTML = `<span class="icon">${gameIcons[iconKey] || ''}</span> +${formatNumber(amount)}`;
 
-    // 재료 아이템일 경우, 파편과 겹치지 않도록 시작 위치를 조금 더 높입니다.
-    if (type !== 'soulShards') {
-        offsetY -= 30;
-    }
-    lootEl.style.transform = `translate(-50%, 0) translate(${offsetX}px, ${offsetY}px)`;
-    
-    container.appendChild(lootEl);    
+    const offsetX = Math.random() * 40 - 20;
+    const offsetY = (type === 'soulShards') ? (Math.random() * 20 - 10) : (Math.random() * 20 - 30);
+    lootEl.style.transform = `translate(-50%) translate(${offsetX}px, ${offsetY}px)`;
+    lootEl.style.opacity = '1';
 
-    lootEl.addEventListener('animationend', () => lootEl.remove());
+    // 애니메이션 클래스를 추가하여 애니메이션 시작
+    lootEl.classList.add('float-up-animation');
+
+    // 애니메이션이 끝나면 풀로 반환
+    lootEl.addEventListener('animationend', () => {
+        lootEl.dataset.active = '';
+        lootEl.style.opacity = '0'; // 다음 사용을 위해 숨김
+        lootEl.classList.remove('float-up-animation');
+    }, { once: true });
 }
 
 // --- 숫자 포맷팅 기능 ---
@@ -609,8 +652,7 @@ function loadGame() {
                     }
                 } else if (key === 'floatingTextSettings') {
                     if (initialGameState[key]) {
-                        gameState[key] = Object.assign({}, initialGameState[key], loadedState[key]);
-                        gameState[key] = loadedState[key];
+                        gameState[key] = Object.assign({}, initialGameState[key], loadedState[key]); // 저장된 설정을 기본 설정에 덮어씁니다.
                     }
                         }else {
                             gameState[key] = Object.assign({}, gameState[key] || {}, loadedState[key]);
@@ -621,6 +663,8 @@ function loadGame() {
                 }
             }
 
+            // 불러온 데이터에 일시적인 버프 상태가 포함되어 있을 경우를 대비해 초기화합니다.
+            gameState.isWhetstoneActive = false;
             // 이전 버전 저장 데이터와의 호환성을 위해, 새로 추가된 숫자 속성이 undefined이면 0으로 초기화합니다.
             if (typeof gameState.totalAttacks !== 'number') {
                 gameState.totalAttacks = 0;
@@ -645,6 +689,10 @@ function fullReset() {
     if (swiftnessPotionTimeoutId) {
         clearTimeout(swiftnessPotionTimeoutId);
         swiftnessPotionTimeoutId = null;
+    }
+    if (whetstoneTimeoutId) {
+        clearTimeout(whetstoneTimeoutId);
+        whetstoneTimeoutId = null;
     }
     if (luckPotionTimeoutId) {
         clearTimeout(luckPotionTimeoutId);
@@ -712,6 +760,27 @@ function toggleToastPopups() {
     addLogMessage(`토스트 팝업이 ${gameState.showToastPopups ? '활성화' : '비활성화'}되었습니다.`, 'special');
 }
 
+function initializeObjectPools() {
+    const damageContainer = document.getElementById('damage-text-container');
+    const lootContainer = document.getElementById('loot-text-container');
+
+    // 기존 풀 초기화
+    damageTextPool.length = 0;
+    lootTextPool.length = 0;
+    damageContainer.innerHTML = '';
+    lootContainer.innerHTML = '';
+
+    for (let i = 0; i < 150; i++) { // 풀 크기를 30에서 100으로 늘립니다.
+        const damageEl = document.createElement('div');
+        damageContainer.appendChild(damageEl);
+        damageTextPool.push(damageEl);
+
+        const lootEl = document.createElement('div');
+        lootContainer.appendChild(lootEl);
+        lootTextPool.push(lootEl);
+    }
+}
+
 function initializeFloatingTextSettings() {
     const container = document.getElementById('floating-text-settings');
     const checkboxGroup = document.createElement('div');
@@ -720,6 +789,7 @@ function initializeFloatingTextSettings() {
     const settingLabels = {
         normal: '일반',
         crit: '치명타',
+        superCrit: '초월 치명타',
         fire: '화염',
         frost: '냉기',
         lightning: '번개',
@@ -800,14 +870,6 @@ function updateDisplay() {
     // 모든 능력치 계산을 함수 시작 부분에서 한 번만 수행하여 데이터 일관성을 보장합니다.    
     let { currentStats, attackInterval, attacksPerSecond } = calculatePassiveStats();
 
-    // 가속 물약 효과를 여기서도 반영하여 UI에 즉시 표시되도록 합니다.
-    if (gameState.isPotionActive) {
-        const speedMultiplier = gameState.artifacts.hourglassOfTime ? 4 : 2; // 모래시계 유물 효과
-        attackInterval /= speedMultiplier;
-        // 화면 표시용 attacksPerSecond도 다시 계산합니다.
-        attacksPerSecond = (parseFloat(attacksPerSecond) * speedMultiplier).toFixed(2);
-    }
-
     const totalDps = calculateDps(currentStats, attackInterval, parseFloat(attacksPerSecond)); // 수정된 attackInterval을 전달
 
     document.getElementById('soul-shards-count').textContent = formatNumber(gameState.soulShards);
@@ -863,7 +925,7 @@ function updateDisplay() {
 
     // 상세 능력치 및 속성 레벨 업데이트 (계산된 값 사용)
     document.getElementById('total-dps-display').textContent = formatNumber(totalDps);
-    document.getElementById('permanent-atk-display').textContent = formatNumber(gameState.attackPower);
+    document.getElementById('permanent-atk-display').textContent = formatNumber(currentStats.attackPower);
     document.getElementById('total-attacks-display').textContent = formatNumber(gameState.totalAttacks);
     document.getElementById('crit-chance-display').textContent = (currentStats.critChance * 100).toFixed(2);
     document.getElementById('crit-damage-display').textContent = currentStats.critDamage.toFixed(2);
@@ -1376,6 +1438,7 @@ function useSwiftnessPotion() {
         return;
     }
     if (gameState.potions.swiftness > 0) {
+        addLogMessage("🚀 가속 물약 효과 발동! 10초간 공격 속도가 2배가 됩니다!", 'special');
         isSwiftnessPotionChainActive = true;
         consumeNextSwiftnessPotion();
     } else {
@@ -1388,7 +1451,6 @@ function consumeNextSwiftnessPotion() {
         isSwiftnessPotionChainActive = false;
         gameState.isPotionActive = false;
         document.querySelector('#swiftness-potion-button .potion-cooldown').style.height = '0%';
-        updateDisplay();
         return;
     }
 
@@ -1401,10 +1463,14 @@ function consumeNextSwiftnessPotion() {
     // 쿨다운 시각 효과 시작
     const cooldownEl = document.querySelector('#swiftness-potion-button .potion-cooldown');
     if (cooldownEl) {
+        cooldownEl.style.animation = ''; // 인라인 애니메이션 스타일 제거
+        cooldownEl.style.height = '100%'; // 높이를 100%로 초기화
         cooldownEl.classList.remove('cooldown-animation');
-        void cooldownEl.offsetWidth; // Reflow to restart animation
-        cooldownEl.style.animationDuration = `${duration / 1000}s`;
-        cooldownEl.classList.add('cooldown-animation');
+        // 애니메이션을 안정적으로 재시작하기 위해 requestAnimationFrame 사용
+        requestAnimationFrame(() => {
+            cooldownEl.style.animationDuration = `${duration / 1000}s`;
+            cooldownEl.classList.add('cooldown-animation');
+        });
     }
 
     swiftnessPotionTimeoutId = setTimeout(consumeNextSwiftnessPotion, duration);
@@ -1419,6 +1485,7 @@ function useLuckPotion() {
     if (gameState.potions.luck > 0) {
         isLuckPotionChainActive = true;
         consumeNextLuckPotion();
+        addLogMessage("🍀 행운 물약 효과 발동! 10초간 재료 획득 확률이 1.5배가 됩니다!", 'special');
     } else {
         addLogMessage("행운 물약이 없습니다.", 'error');
     }
@@ -1429,7 +1496,6 @@ function consumeNextLuckPotion() {
         isLuckPotionChainActive = false;
         gameState.isLuckPotionActive = false;
         document.querySelector('#luck-potion-button .potion-cooldown').style.height = '0%';
-        updateDisplay();
         return;
     }
 
@@ -1441,10 +1507,14 @@ function consumeNextLuckPotion() {
     // 쿨다운 시각 효과 시작
     const cooldownEl = document.querySelector('#luck-potion-button .potion-cooldown');
     if (cooldownEl) {
+        cooldownEl.style.animation = ''; // 인라인 애니메이션 스타일 제거
+        cooldownEl.style.height = '100%'; // 높이를 100%로 초기화
         cooldownEl.classList.remove('cooldown-animation');
-        void cooldownEl.offsetWidth; // Reflow to restart animation
-        cooldownEl.style.animationDuration = `${duration / 1000}s`;
-        cooldownEl.classList.add('cooldown-animation');
+        // 애니메이션을 안정적으로 재시작하기 위해 requestAnimationFrame 사용
+        requestAnimationFrame(() => {
+            cooldownEl.style.animationDuration = `${duration / 1000}s`;
+            cooldownEl.classList.add('cooldown-animation');
+        });
     }
 
     luckPotionTimeoutId = setTimeout(consumeNextLuckPotion, duration);
@@ -1531,11 +1601,6 @@ function runGameLoop() {
     const now = Date.now();
     let { currentStats, attackInterval: baseAttackInterval, attacksPerSecond } = calculatePassiveStats();
 
-    if (gameState.isPotionActive) {
-        const speedMultiplier = gameState.artifacts.hourglassOfTime ? 4 : 2;
-        baseAttackInterval /= speedMultiplier; // Apply potion effect to the base interval
-    }
-
     // 마지막 공격 시간으로부터 attackInterval만큼 지났는지 확인
     // 여러 번의 공격이 밀렸을 경우를 처리하기 위해 while 루프 사용
     if (now >= lastAttackTime + baseAttackInterval) {
@@ -1554,19 +1619,29 @@ function runGameLoop() {
 
         attacksThisSecond++; // 실제 공격 횟수 카운트 증가
         let currentAttackPower = currentStats.attackPower;
-        if (gameState.artifacts.blacksmithsWhetstone) {
-            currentAttackPower *= 1.10;
+        let finalAttackPower = currentAttackPower;
+        let isCrit = false;
+        let isSuperCrit = false; // 비밀의 고서 효과 발동 여부
+
+        // 대장장이의 숫돌 효과 발동 (가장 먼저 체크)
+        const whetstoneChance = gameState.artifacts.blessingOfAncientGod ? 0.01 : 0.005;
+        if (gameState.artifacts.blacksmithsWhetstone && !gameState.isWhetstoneActive && Math.random() < whetstoneChance) {
+            activateWhetstoneEffect();
         }
 
-        let finalAttackPower = currentAttackPower;
-        let critDamage = currentStats.critDamage;
-        if (gameState.artifacts.tomeOfSecrets) {
-            critDamage += 0.5;
-        }
-        let isCrit = false;
         if (Math.random() < currentStats.critChance) {
             isCrit = true;
-            finalAttackPower *= critDamage;
+            finalAttackPower *= currentStats.critDamage;
+
+            // 비밀의 고서 효과: 50% 확률로 치명타 데미지 2배
+            const tomeChance = gameState.artifacts.blessingOfAncientGod ? 0.2 : 0.1;
+            if (gameState.artifacts.tomeOfSecrets && Math.random() < tomeChance) {
+                let superCritMultiplier = Math.random() * 8 + 2; // 2.0 ~ 10.0 사이의 랜덤 배율
+                if (gameState.artifacts.blessingOfAncientGod) superCritMultiplier *= 2; // 4.0 ~ 20.0
+                finalAttackPower *= superCritMultiplier;                
+                isSuperCrit = superCritMultiplier; // 배율 값을 저장
+            }
+
             triggerAnimation('monster-container', 'monster-shake-animation');
             playSoundEffect('critSlash');
             triggerAnimation('sword-container', 'crit-attack-animation');
@@ -1607,7 +1682,8 @@ function runGameLoop() {
 
             if (gameState.evolutionLevel >= 2 && gameState.attackCountForPassive % 10 === 0) {
                 let infernoDamage = (currentStats.attackPower * 2) + (currentStats.poisonLevel + currentStats.fireLevel) * 50;
-                if (gameState.artifacts.ancientRunestone) {
+                if (gameState.artifacts.ancientRunestone) { // 룬스톤 효과
+                    const runestoneBonus = gameState.artifacts.blessingOfAncientGod ? 0.50 : 0.25;
                     infernoDamage *= 1.25;
                 }
                 showVfx('vfx-fire');
@@ -1615,7 +1691,8 @@ function runGameLoop() {
                 totalDamage += infernoDamage;
             } else if (gameState.attackCountForPassive % 5 === 0) {
                 let lightningDamage = currentStats.attackPower * 3;
-                if (gameState.artifacts.ancientRunestone) {
+                if (gameState.artifacts.ancientRunestone) { // 룬스톤 효과
+                    const runestoneBonus = gameState.artifacts.blessingOfAncientGod ? 0.50 : 0.25;
                     lightningDamage *= 1.25;
                 }
                 showVfx('vfx-lightning');
@@ -1645,7 +1722,7 @@ function runGameLoop() {
                 }
                 gameState.currentBoss.hp -= finalBossDamage;
                 gameState.soulShards += (finalBossDamage - fragmentBonusDamage) / 100;
-                showDamageText(finalBossDamage, isCrit ? 'crit' : 'normal');
+                showDamageText(finalBossDamage, isSuperCrit ? `superCrit:${isSuperCrit}` : (isCrit ? 'crit' : 'normal'));
             } else {
                 addLogMessage(`[${zones[bossZone].name}] 지역의 몬스터를 ${requiredKills}마리 처치해야 보스에게 피해를 줄 수 있습니다! (${killsInZone}/${requiredKills})`, 'error');
             }
@@ -1655,8 +1732,8 @@ function runGameLoop() {
                 break; // 보스 처치 시 while 루프 즉시 종료
             }
         } else {
-            currentMonster.hp -= totalDamage;
-            showDamageText(totalDamage, isCrit ? 'crit' : 'normal');
+            currentMonster.hp -= totalDamage;            
+            showDamageText(totalDamage, isSuperCrit ? `superCrit:${isSuperCrit}` : (isCrit ? 'crit' : 'normal'));
 
             if (currentMonster.hp <= 0) {
                 handleMonsterDefeat(currentStats, totalDamage);
@@ -1751,12 +1828,15 @@ function handleMonsterDefeat(currentStats, totalDamage) {
     if (gameState.isLuckPotionActive) {
         currentDropChance *= 1.5;
     }
-    if (gameState.artifacts.luckyHorseshoe) {
-        currentDropChance += 0.05;
-    }
     if (activeZone.material && Math.random() < currentDropChance) {
-        gameState.materials[activeZone.material]++;
-        showLootText(1, activeZone.material);
+        let dropAmount = 1;
+        // 행운의 편지 효과: 1~5개 사이 랜덤 획득
+        if (gameState.artifacts.luckyHorseshoe) {
+            dropAmount = Math.floor(Math.random() * 5) + 1; // 1~5
+            if (gameState.artifacts.blessingOfAncientGod) dropAmount *= 2; // 2~10
+        }
+        gameState.materials[activeZone.material] += dropAmount;
+        showLootText(dropAmount, activeZone.material);
         triggerAnimation(`${activeZone.material}-count`, 'pulse-animation');
     }
 
@@ -1814,12 +1894,25 @@ function startNewGamePlus() {
     isResetting = true; // 리셋 시작 플래그 설정
     stopGameLoop();
 
+    // 모든 물약 관련 타이머와 상태를 확실하게 초기화합니다.
+    if (swiftnessPotionTimeoutId) clearTimeout(swiftnessPotionTimeoutId);
+    if (luckPotionTimeoutId) clearTimeout(luckPotionTimeoutId);
+    swiftnessPotionTimeoutId = null;
+    luckPotionTimeoutId = null;
+    isSwiftnessPotionChainActive = false;
+    isLuckPotionChainActive = false;
+    document.querySelector('#swiftness-potion-button .potion-cooldown').style.animation = 'none';
+    document.querySelector('#luck-potion-button .potion-cooldown').style.animation = 'none';
+    document.querySelector('#swiftness-potion-button .potion-cooldown').style.height = '0%';
+    document.querySelector('#luck-potion-button .potion-cooldown').style.height = '0%';
+
     // 유지할 상태
     const prestigeLevel = gameState.prestigeLevel + 1;
     const evolutionLevel = gameState.evolutionLevel;
     const isPoisonEvolved = gameState.isPoisonEvolved;
     const previousSoulShards = gameState.soulShards; // 이전 영혼의 파편 저장
     const currentArtifacts = gameState.artifacts;
+    const currentFloatingTextSettings = gameState.floatingTextSettings; // 현재 텍스트 설정 저장
 
     // 게임 상태 초기화
     gameState = JSON.parse(JSON.stringify(initialGameState));
@@ -1829,6 +1922,7 @@ function startNewGamePlus() {
     gameState.evolutionLevel = evolutionLevel;
     gameState.isPoisonEvolved = isPoisonEvolved;
     gameState.artifacts = currentArtifacts; // 기존 유물 유지
+    gameState.floatingTextSettings = currentFloatingTextSettings; // 저장했던 텍스트 설정 복원
 
     // 회차 보너스 지급 (이전 파편의 10%)
     const bonusShards = Math.floor(previousSoulShards * 0.1);
@@ -1885,7 +1979,9 @@ function applyArtifactEffects() {
     if (chaliceIntervalId) clearInterval(chaliceIntervalId);
 
     if (gameState.artifacts.chaliceOfLife) {
+        const chaliceMultiplier = gameState.artifacts.blessingOfAncientGod ? 10 : 5;
         chaliceIntervalId = setInterval(() => {
+            if (!gameState.artifacts.chaliceOfLife) return;
             const dps = calculateDps();
             const bonusShards = dps * 5;
             gameState.soulShards += bonusShards;
@@ -1923,6 +2019,7 @@ function initializeGame() {
     lastAttackTime = Date.now();
 
     initializeIcons();
+    initializeObjectPools();
     initializeFloatingTextSettings();
     updateDisplay();
     applyCombatUiVisibility(); // UI 숨김 상태 적용
@@ -1931,6 +2028,9 @@ function initializeGame() {
     if (isMusicPlaying) {
         playZoneMusic(gameState.currentZone);
     }
+
+    // 시각 효과 초기화
+    document.getElementById('whetstone-aura').classList.remove('active');
 
     // 첫 몬스터 생성
     const monsterMaxHp = zones[gameState.currentZone].monsterHp * (1 + (gameState.prestigeLevel * 0.5));
@@ -2109,6 +2209,7 @@ function calculatePassiveStats() {
     // 슬라임 코어의 공격력 증가 공식을 제곱근으로 변경하여 후반에도 유의미한 성장을 제공합니다.
     stats.attackPower += Math.sqrt(gameState.materials.slimeCore) * 50;
     stats.critChance += Math.min(0.75, Math.log2(gameState.materials.goblinEar + 1) * 0.015); // 최대 75%
+
     stats.critDamage += Math.log2(gameState.materials.goblinEar + 1) * 0.1;
     stats.curseDamage += Math.log2(gameState.materials.cursedBone + 1) * 20;
     stats.fireLevel += Math.floor(Math.log2(gameState.materials.fireEssence + 1));
@@ -2122,21 +2223,40 @@ function calculatePassiveStats() {
 
     stats.soulReapLevel += Math.floor(Math.log2(gameState.materials.cursedBone + 1));
 
-    // 공격 속도: 고블린 귀가 많아질수록 빨라짐 (최소 100ms)
-    const attackSpeedBonus = Math.log2(gameState.materials.goblinEar + 1) * 30;
-    let attackInterval = Math.max(100, 1000 - attackSpeedBonus);
+    // 대장장이의 숫돌 효과: 활성화 시 영구 공격력 2배
+    if (gameState.isWhetstoneActive) {
+        // 슬라임 코어 등으로 증가된 공격력을 포함한 전체 영구 공격력에 배율을 적용하도록 수정
+        const currentPermanentAttack = stats.attackPower;
+        const whetstoneMultiplier = gameState.artifacts.blessingOfAncientGod ? 6 : 3; // 축복 유물 효과: 3배 -> 6배
+        stats.attackPower = currentPermanentAttack * whetstoneMultiplier;
+    }
 
-    // 스킨 보너스 적용
-    let attacksPerSecond = 1000 / attackInterval;
+    // 공격 속도: 고블린 귀가 많아질수록 빨라짐 (최소 100ms)
+    // 기본 공격 속도 1에, 고블린의 귀로 인한 보너스(최대 9)를 더하는 방식으로 변경합니다.
+    const goblinEarBonus = Math.log2(gameState.materials.goblinEar + 1) * 0.3;
+    let attacksPerSecond = 1 + Math.min(10, goblinEarBonus); // 최대 보너스는 9로 제한
+
+    // 스킨 보너스 적용 (숫자로 더함)
     const currentSkinBonus = skinBonuses[gameState.currentSkin];
     if (currentSkinBonus && currentSkinBonus.attacksPerSecond) {
         attacksPerSecond += currentSkinBonus.attacksPerSecond;
     }
 
-    // 최종 공격 간격 재계산
-    attackInterval = Math.max(1, 1000 / attacksPerSecond); // 무한 루프 방지를 위해 최소 1ms 보장
+    // 시간의 모래시계 효과 적용 (숫자로 더함)
+    if (gameState.artifacts.hourglassOfTime) {
+        const hourglassBonus = gameState.artifacts.blessingOfAncientGod ? 4 : 2;
+        attacksPerSecond += hourglassBonus;
+    }
 
-    return { currentStats: stats, attackInterval: attackInterval, attacksPerSecond: attacksPerSecond.toFixed(2) };
+    // 가속 물약 효과 적용 (모든 보너스가 합산된 후 곱함)
+    if (gameState.isPotionActive) {
+        attacksPerSecond *= 2;
+    }
+
+    // 최종 공격 간격 계산
+    let attackInterval = Math.max(1, 1000 / attacksPerSecond); // 무한 루프 방지를 위해 최소 1ms 보장
+
+    return { currentStats: stats, attackInterval: attackInterval, attacksPerSecond: attacksPerSecond.toFixed(2) }; // 마지막에 문자열로 변환
 }
 
 function checkAndApplyOffering(materialId) {
@@ -2159,6 +2279,28 @@ function checkAndApplyOffering(materialId) {
         gameState.offeredMaterials[materialId] = true;
         addLogMessage(`✨ ${offeringData.name}이(가) 제물로 바쳐져 영구 공격력이 2배가 되었습니다!`, 'special');
     }
+}
+
+function activateWhetstoneEffect() {
+    const whetstoneMultiplier = gameState.artifacts.blessingOfAncientGod ? 6 : 3;
+    if (!gameState.isWhetstoneActive) {
+        gameState.isWhetstoneActive = true;
+        document.getElementById('whetstone-aura').classList.add('active');
+        playSoundEffect('whetstoneActivate'); // 효과음 재생
+        addLogMessage(`✨ 대장장이의 숫돌 효과 발동! 2초간 영구 공격력이 ${whetstoneMultiplier}배가 됩니다!`, 'special');
+    }
+
+    // 기존 타이머가 있다면 제거 (안전장치)
+    if (whetstoneTimeoutId) {
+        clearTimeout(whetstoneTimeoutId);
+    }
+
+    // 1초 후에 효과를 비활성화
+    whetstoneTimeoutId = setTimeout(() => {
+        gameState.isWhetstoneActive = false;
+        document.getElementById('whetstone-aura').classList.remove('active');
+        whetstoneTimeoutId = null; // 타이머 ID 초기화
+    }, 2000);
 }
 function startBossTimer(bossId, timeInSeconds) {
     const bossData = bosses[bossId];
@@ -2244,7 +2386,18 @@ function calculateDps(stats, interval, aps) {
     const attacksPerSecond = aps || calculatePassiveStats().attacksPerSecond;
     
     let baseAttack = currentStats.attackPower;
-    const avgCritDamage = baseAttack * (1 + currentStats.critChance * (currentStats.critDamage - 1));
+    let avgCritMultiplier = 1 + currentStats.critChance * (currentStats.critDamage - 1);
+
+    // 비밀의 고서 효과를 DPS 계산에 반영
+    if (gameState.artifacts.tomeOfSecrets) {
+        const tomeChance = gameState.artifacts.blessingOfAncientGod ? 0.2 : 0.1;
+        const tomeMultiplier = gameState.artifacts.blessingOfAncientGod ? 12 : 6; // 평균 배율 (4~20 -> 12, 2~10 -> 6)
+        // 기존 치명타 피해량(critDamage)에 추가되는 피해량은 (critDamage * (tomeMultiplier - 1)) 입니다.
+        // (critChance * tomeChance) * (baseAttack * critDamage * (tomeMultiplier - 1)) / baseAttack
+        // = critChance * tomeChance * critDamage * (tomeMultiplier - 1)
+        avgCritMultiplier += currentStats.critChance * tomeChance * (currentStats.critDamage * (tomeMultiplier - 1));
+    }
+    const avgCritDamage = baseAttack * avgCritMultiplier;
     
     // 진화 스킬 DPS 계산 (스킬 피해량 / 발동 주기(초))
     let evolutionSkillDps = 0;
@@ -2253,13 +2406,15 @@ function calculateDps(stats, interval, aps) {
     if (gameState.evolutionLevel >= 1) {
         // 1차: 연쇄 번개 (5회 공격마다)
         let lightningDamage = baseAttack * 3;
-        if (gameState.artifacts.ancientRunestone) lightningDamage *= 1.25;
+        const runestoneBonus = gameState.artifacts.blessingOfAncientGod ? 1.50 : 1.25;
+        if (gameState.artifacts.ancientRunestone) lightningDamage *= runestoneBonus;
         evolutionSkillDps += (lightningDamage / 5) * attacksPerSecondNum;
     }
     if (gameState.evolutionLevel >= 2) {
         // 2차: 지옥불 일격 (10회 공격마다)
         let infernoDamage = (baseAttack * 2) + (currentStats.poisonLevel + currentStats.fireLevel) * 50;
-        if (gameState.artifacts.ancientRunestone) infernoDamage *= 1.25;
+        const runestoneBonus = gameState.artifacts.blessingOfAncientGod ? 1.50 : 1.25;
+        if (gameState.artifacts.ancientRunestone) infernoDamage *= runestoneBonus;
         evolutionSkillDps += (infernoDamage / 10) * attacksPerSecondNum;
     }
     if (gameState.evolutionLevel >= 3) {
@@ -2276,6 +2431,14 @@ function calculateDps(stats, interval, aps) {
     const curseDps = currentStats.curseDamage;
 
     let totalDps = (avgCritDamage * attacksPerSecondNum) + evolutionSkillDps + poisonDps + curseDps;
+
+    // 대장장이의 숫돌 효과를 DPS 계산에 반영
+    if (gameState.artifacts.blacksmithsWhetstone) {
+        const whetstoneChance = gameState.artifacts.blessingOfAncientGod ? 0.01 : 0.005;
+        const whetstoneMultiplier = gameState.artifacts.blessingOfAncientGod ? 6 : 3;
+        // 1% 확률로 2초간 영구 공격력이 5배가 되므로, 전체 DPS에 (영구 공격력 * 4 * 공격속도)의 1%만큼 추가됩니다.
+        totalDps += (gameState.attackPower * (whetstoneMultiplier - 1) * attacksPerSecondNum) * whetstoneChance;
+    }
 
     // 회차 피해량 보너스 적용    
     const prestigeDamageBonus = 1 + (gameState.prestigeLevel * 0.01); // 1% per level

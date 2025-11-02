@@ -581,5 +581,27 @@ const soundEffects = {
         },
         duration: '0.5s',
         volume: -15
+    },
+    // 대장장이 숫돌 발동 효과음
+    whetstoneActivate: {
+        type: 'warp', // '사냥터 이동'과 유사한 워프 타입
+        duration: '0.3s', // 더 짧고 강렬하게
+        synth: {
+            oscillator: { type: 'fatsawtooth' }, // 더 풍부하고 강렬한 소리
+            envelope: {
+                attack: 0.01,
+                decay: 0.2,
+                sustain: 0.05,
+                release: 0.05
+            }
+        },
+        frequencyEnvelope: {
+            attack: 0.02,
+            baseFrequency: 'C4', // 한 옥타브 높은 '도'에서 시작
+            octaves: 4,          // 4옥타브를 빠르게 상승하여 '슈웅!'하는 느낌 강화
+            exponent: 1.5,
+            release: 0.1
+        },
+        volume: -8 // 볼륨을 약간 키워 강조
     }
 };

@@ -90,6 +90,28 @@ h1 {
     z-index: 2; /* VFX 컨테이너보다 위에 있도록 설정 */
 }
 
+/* 대장장이 숫돌 오라 효과 */
+#whetstone-aura {
+    position: absolute;
+    top: 65px; /* 칼의 중앙에 위치하도록 조정 */
+    left: 75px;
+    width: 120px; /* 칼보다 약간 크게 */
+    height: 120px;
+    background-image: radial-gradient(circle, rgba(255, 193, 7, 0.7) 20%, rgba(255, 87, 34, 0) 70%);
+    border-radius: 50%;
+    transform: translate(-50%, -50%) scale(0); /* 기본적으로 작게 숨김 */
+    opacity: 0;
+    z-index: 1; /* 칼보다 뒤에 위치 */
+    transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+}
+
+#whetstone-aura.active {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+    animation: whetstone-burn 1s infinite;
+}
+
+
 #loot-text-container {
     position: absolute;
     top: 0%; /* 칼 컨테이너 바로 아래에 위치 */
@@ -158,6 +180,13 @@ h1 {
     color: #ccc;
     animation: fade-in 0.3s ease-out;
     line-height: 1.4;
+}
+
+/* 상태창의 파편 카운트가 깜빡이는 현상 방지 */
+#soul-shards-count {
+    display: inline-block;
+    min-width: 80px; /* 충분한 최소 너비 확보 */
+    text-align: left;
 }
 
 .monster-hp-bar-container {
@@ -346,6 +375,16 @@ button:disabled {
     50% { transform: scale(1.1); box-shadow: 0 0 25px #ffeb3b; }
 }
 
+@keyframes whetstone-burn {
+    0%, 100% {
+        box-shadow: 0 0 20px #ffc107, 0 0 30px #ff9800, 0 0 40px #ff5722;
+        filter: brightness(1);
+    }
+    50% {
+        box-shadow: 0 0 30px #ffeb3b, 0 0 45px #ffc107, 0 0 60px #ff9800;
+        filter: brightness(1.2);
+    }
+}
 
 #combat-stats-summary {
     display: flex;
@@ -820,6 +859,11 @@ button:disabled {
     font-size: 12px;
 }
 
+/* 파편 카운트의 최소 너비를 지정하여 숫자 길이에 따른 레이아웃 깨짐 방지 */
+#summary-shards-count {
+    min-width: 80px; 
+}
+
 .summary-item .icon {
     width: 1.5em;
     height: 1.5em;
@@ -912,7 +956,6 @@ button:disabled {
     font-weight: bold;
     color: #ffc107; /* 영혼 파편 색상 */
     text-shadow: 2px 2px 2px #000;
-    animation: float-up 1s ease-out forwards; /* 데미지 텍스트와 동일한 애니메이션 적용 */
     white-space: nowrap;
     display: flex;
     align-items: center;
@@ -933,13 +976,17 @@ button:disabled {
     position: absolute;
     left: 50%;
     top: 20%;
-    transform: translateX(-50%);
+    /* transform: translateX(-50%); */ /* JS에서 제어하므로 제거 */
     font-size: 18px;
     font-weight: bold;
     color: #fff;
     text-shadow: 2px 2px 2px #000;
-    animation: float-up 1s ease-out forwards;
     white-space: nowrap;
+    opacity: 0; /* 기본적으로 숨김 */
+}
+
+.damage-text.float-up-animation, .loot-text.float-up-animation {
+    animation: float-up 1.2s ease-out forwards;
 }
 
 .damage-text .icon {
@@ -952,6 +999,20 @@ button:disabled {
     font-size: 28px;
     color: #ffc107;
     animation-duration: 1.2s;
+}
+
+.damage-text.superCrit {
+    font-size: 30px; /* 폰트 크기 약간 조정 */
+    color: #c37de4; /* 보라색 */
+    animation-duration: 1.8s; /* 애니메이션 시간 증가 */
+    display: flex;
+    align-items: baseline;
+}
+
+.super-crit-multiplier {
+    font-size: 16px;
+    color: #f5d5ff;
+    margin-left: 8px;
 }
 
 .damage-text.fire {
@@ -972,12 +1033,12 @@ button:disabled {
 
 @keyframes float-up {
     from {
-        opacity: 1;
-        /* transform 속성을 제거하여 JS에서 설정한 초기 위치를 유지합니다. */
+        opacity: 1; /* JS에서 opacity를 1로 설정하면 여기서부터 애니메이션 시작 */
+        /* transform은 JS에서 설정한 초기 위치를 그대로 사용합니다. */
     }
     to {
-        opacity: 0;
-        transform: translate(-50%, -60px); /* 최종 위치를 조정하여 덜 올라가도록 합니다. */
+        opacity: 0; /* 서서히 사라짐 */
+        transform: translate(-50%, -80px); /* JS에서 설정한 초기 위치에서 위로 80px 이동 */
     }
 }
 
