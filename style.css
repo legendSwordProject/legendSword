@@ -575,6 +575,12 @@ button:disabled {
     margin: 15px 0 5px 0;
 }
 
+.overlay-content .action-group {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
 #prestige-bonus-display {
     font-size: 12px;
     color: #8fbc8f;
@@ -838,7 +844,7 @@ button:disabled {
     border-radius: 10px;
     border: 1px solid #555;
     gap: 15px;
-    flex-wrap: wrap;
+    flex-wrap: wrap; /* 아이템이 여러 줄로 표시되도록 수정 */
 }
 
 .overlay-content #offline-rewards-list {

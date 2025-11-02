@@ -397,6 +397,144 @@ const backgroundMusic = {
         ],
         bpm: 90, // 템포를 약간 올려서 덜 처지는 느낌을 줍니다.
         loopEnd: '16m'
+    },
+    // 속삭이는 습지: 신비롭고 물기 있는 분위기
+    whisperingWetlands: {
+        melody: [
+            { note: 'F#4', duration: '2n', time: '0:0' },
+            { note: 'A4', duration: '4n', time: '1:0' },
+            { note: 'G4', duration: '4n', time: '1:2' },
+            { note: 'F#4', duration: '2n', time: '2:0' },
+            { note: 'D4', duration: '2n', time: '3:0' },
+            { note: 'E4', duration: '2n', time: '4:0' },
+            { note: 'C#4', duration: '2n', time: '5:0' },
+            { note: 'D4', duration: '1n', time: '6:0' },
+        ],
+        harmony: [
+            { note: 'D5', duration: '1n', time: '0:0' },
+            { note: 'C#5', duration: '1n', time: '2:0' },
+            { note: 'B4', duration: '1n', time: '4:0' },
+            { note: 'A4', duration: '1n', time: '6:0' },
+        ],
+        bass: [
+            { note: 'D2', duration: '1n', time: '0:0' },
+            { note: 'A2', duration: '1n', time: '2:0' },
+            { note: 'B2', duration: '1n', time: '4:0' },
+            { note: 'G2', duration: '1n', time: '6:0' },
+        ],
+        bpm: 75,
+        loopEnd: '8m'
+    },
+    // 가라앉은 묘지: 음산하고 장엄한 분위기
+    sunkenCemetery: {
+        melody: [
+            { note: 'D4', duration: '2n', time: '0:0' },
+            { note: 'F4', duration: '2n', time: '1:0' },
+            { note: 'Eb4', duration: '1n', time: '2:0' },
+            { note: 'D4', duration: '1n', time: '4:0' },
+            { note: 'C4', duration: '2n', time: '6:0' },
+            { note: 'D4', duration: '2n', time: '7:0' },
+        ],
+        harmony: [
+            { note: 'A3', duration: '1n', time: '0:0' },
+            { note: 'Bb3', duration: '1n', time: '2:0' },
+            { note: 'G3', duration: '1n', time: '4:0' },
+            { note: 'A3', duration: '1n', time: '6:0' },
+        ],
+        bass: [
+            { note: 'D2', duration: '2n', time: '0:0' },
+            { note: 'G2', duration: '2n', time: '2:0' },
+            { note: 'C2', duration: '2n', time: '4:0' },
+            { note: 'F2', duration: '2n', time: '6:0' },
+        ],
+        bpm: 60,
+        loopEnd: '8m'
+    },
+    // 불타는 사막: 건조하고 이국적인 분위기
+    scorchedDesert: {
+        melody: [
+            { note: 'G#4', duration: '8n', time: '0:0' }, { note: 'A4', duration: '8n', time: '0:1' }, { note: 'G#4', duration: '4n', time: '0:2' },
+            { note: 'F4', duration: '4n', time: '1:0' }, { note: 'D#4', duration: '2n', time: '2:0' },
+            { note: 'G#4', duration: '8n', time: '4:0' }, { note: 'A4', duration: '8n', time: '4:1' }, { note: 'C5', duration: '4n', time: '4:2' },
+            { note: 'A4', duration: '4n', time: '5:0' }, { note: 'G#4', duration: '2n', time: '6:0' },
+        ],
+        harmony: [
+            { note: 'C#4', duration: '1n', time: '0:0' },
+            { note: 'D#4', duration: '1n', time: '2:0' },
+            { note: 'C#4', duration: '1n', time: '4:0' },
+            { note: 'B3', duration: '1n', time: '6:0' },
+        ],
+        bass: [
+            { note: 'C#3', duration: '1n', time: '0:0' },
+            { note: 'G#2', duration: '1n', time: '2:0' },
+            { note: 'F#2', duration: '1n', time: '4:0' },
+            { note: 'B2', duration: '1n', time: '6:0' },
+        ],
+        bpm: 100,
+        loopEnd: '8m'
+    },
+    // 수정 동굴: 반짝이고 영롱한 분위기
+    crystalCaverns: {
+        melody: [
+            { note: 'C5', duration: '8n', time: '0:0' }, { note: 'E5', duration: '8n', time: '0:1' }, { note: 'G5', duration: '4n', time: '0:2' },
+            { note: 'A5', duration: '2n', time: '1:0' },
+            { note: 'B5', duration: '8n', time: '2:0' }, { note: 'G5', duration: '8n', time: '2:1' }, { note: 'E5', duration: '4n', time: '2:2' },
+            { note: 'D5', duration: '2n', time: '3:0' },
+        ],
+        harmony: [
+            { note: 'G4', duration: '2n', time: '0:0' },
+            { note: 'F4', duration: '2n', time: '1:0' },
+            { note: 'E4', duration: '2n', time: '2:0' },
+            { note: 'C4', duration: '2n', time: '3:0' },
+        ],
+        bass: [
+            { note: 'C3', duration: '1n', time: '0:0' },
+            { note: 'G2', duration: '1n', time: '2:0' },
+        ],
+        bpm: 85,
+        loopEnd: '4m'
+    },
+    // 별의 평원: 광활하고 몽환적인 분위기
+    astralPlane: {
+        melody: [
+            { note: 'A4', duration: '1n', time: '0:0' },
+            { note: 'G4', duration: '1n', time: '2:0' },
+            { note: 'F4', duration: '1n', time: '4:0' },
+            { note: 'E4', duration: '1n', time: '6:0' },
+        ],
+        harmony: [
+            { note: 'C5', duration: '2n', time: '0:0' },
+            { note: 'B4', duration: '2n', time: '2:0' },
+            { note: 'A4', duration: '2n', time: '4:0' },
+            { note: 'G4', duration: '2n', time: '6:0' },
+        ],
+        bass: [
+            { note: 'F2', duration: '2n', time: '0:0' },
+            { note: 'G2', duration: '2n', time: '2:0' },
+            { note: 'D2', duration: '2n', time: '4:0' },
+            { note: 'C2', duration: '2n', time: '6:0' },
+        ],
+        bpm: 50,
+        loopEnd: '8m'
+    },
+    // 공허의 심연: 불안하고 왜곡된 분위기
+    voidChasm: {
+        melody: [
+            { note: 'C#4', duration: '4n', time: '0:0' },
+            { note: 'D4', duration: '4n', time: '1:0' },
+            { note: 'C4', duration: '4n', time: '2:0' },
+            { note: 'B3', duration: '4n', time: '3:0' },
+        ],
+        harmony: [
+            { note: 'G#4', duration: '2n', time: '0:0' },
+            { note: 'A4', duration: '2n', time: '2:0' },
+        ],
+        bass: [
+            { note: 'C#2', duration: '1n', time: '0:0' },
+            { note: 'F#1', duration: '1n', time: '2:0' },
+        ],
+        bpm: 130,
+        loopEnd: '4m'
     }
 };
 

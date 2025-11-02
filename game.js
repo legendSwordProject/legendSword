@@ -5,11 +5,17 @@ console.log("게임 로직이 시작되었습니다!");
 // Zone 데이터 정의
 const zones = {
     forest: { name: '시작의 숲', material: 'slimeCore', dropChance: 0.5, monsterIconKey: 'slime', monsterHp: 10, unlockCondition: () => true },
-    cave: { name: '어두운 동굴', material: 'goblinEar', dropChance: 0.3, monsterIconKey: 'goblin', monsterHp: 100, unlockCondition: (state) => state.materials.monsterKillsByZone.forest >= 100 * (state.prestigeLevel + 1), unlockText: (state) => `시작의 숲 몬스터 ${100 * (state.prestigeLevel + 1)}마리 처치` },
-    ruins: { name: '저주받은 폐허', material: 'cursedBone', dropChance: 0.2, monsterIconKey: 'skeleton', monsterHp: 600, unlockCondition: (state) => state.bosses.giantSpider.isDefeated, unlockText: "보스 '거대 거미' 처치" },
-    volcano: { name: '화산 지대', material: 'fireEssence', dropChance: 0.15, monsterIconKey: 'fireGolem', monsterHp: 2500, unlockCondition: (state) => state.bosses.skeletonKing.isDefeated, unlockText: "보스 '해골 왕' 처치" },
-    mountain: { name: '혹한의 설산', material: 'frostCrystal', dropChance: 0.1, monsterIconKey: 'iceGolem', monsterHp: 15000, unlockCondition: (state) => state.bosses.cursedKing.isDefeated, unlockText: "'저주받은 왕' 처치" },
-    rift: { name: '차원의 균열', material: 'dimensionalFragment', dropChance: 0.1, monsterIconKey: 'dimensionalShadow', monsterHp: 50000, unlockCondition: (state) => state.materials.ancientMapPiece >= 4, unlockText: "고대의 지도 조각 4개 수집" }
+    whisperingWetlands: { name: '속삭이는 습지', material: 'spiritDew', dropChance: 0.4, monsterIconKey: 'swampSpirit', monsterHp: 50, unlockCondition: (state) => state.prestigeLevel >= 3, unlockText: "3회차 달성" },
+    cave: { name: '어두운 동굴', material: 'goblinEar', dropChance: 0.3, monsterIconKey: 'goblin', monsterHp: 100, unlockCondition: (state) => (state.prestigeLevel < 3 && state.materials.monsterKillsByZone.forest >= 100 * (state.prestigeLevel + 1)) || (state.prestigeLevel >= 3 && state.bosses.swampGuardian.isDefeated), unlockText: (state) => state.prestigeLevel < 3 ? `시작의 숲 몬스터 ${100 * (state.prestigeLevel + 1)}마리 처치` : "보스 '늪의 수호자' 처치" },
+    sunkenCemetery: { name: '가라앉은 묘지', material: 'graveDust', dropChance: 0.25, monsterIconKey: 'ghoul', monsterHp: 300, unlockCondition: (state) => state.prestigeLevel >= 6 && state.bosses.giantSpider.isDefeated, unlockText: "6회차 달성 및 보스 '거대 거미' 처치" },
+    ruins: { name: '저주받은 폐허', material: 'cursedBone', dropChance: 0.2, monsterIconKey: 'skeleton', monsterHp: 600, unlockCondition: (state) => (state.prestigeLevel < 6 && state.bosses.giantSpider.isDefeated) || (state.prestigeLevel >= 6 && state.bosses.lich.isDefeated), unlockText: (state) => state.prestigeLevel < 6 ? "보스 '거대 거미' 처치" : "보스 '리치' 처치" },
+    scorchedDesert: { name: '불타는 사막', material: 'sandstoneFragment', dropChance: 0.18, monsterIconKey: 'sandworm', monsterHp: 1200, unlockCondition: (state) => state.prestigeLevel >= 9 && state.bosses.skeletonKing.isDefeated, unlockText: "9회차 달성 및 보스 '해골 왕' 처치" },
+    volcano: { name: '화산 지대', material: 'fireEssence', dropChance: 0.15, monsterIconKey: 'fireGolem', monsterHp: 2500, unlockCondition: (state) => (state.prestigeLevel < 9 && state.bosses.skeletonKing.isDefeated) || (state.prestigeLevel >= 9 && state.bosses.phoenix.isDefeated), unlockText: (state) => state.prestigeLevel < 9 ? "보스 '해골 왕' 처치" : "보스 '불사조' 처치" },
+    crystalCaverns: { name: '수정 동굴', material: 'crystalShard', dropChance: 0.12, monsterIconKey: 'crystalGolem', monsterHp: 8000, unlockCondition: (state) => state.prestigeLevel >= 12 && state.bosses.cursedKing.isDefeated, unlockText: "12회차 달성 및 보스 '저주받은 왕' 처치" },
+    mountain: { name: '혹한의 설산', material: 'frostCrystal', dropChance: 0.1, monsterIconKey: 'iceGolem', monsterHp: 15000, unlockCondition: (state) => (state.prestigeLevel < 12 && state.bosses.cursedKing.isDefeated) || (state.prestigeLevel >= 12 && state.bosses.crystalTitan.isDefeated), unlockText: (state) => state.prestigeLevel < 12 ? "'저주받은 왕' 처치" : "보스 '수정 타이탄' 처치" },
+    astralPlane: { name: '별의 평원', material: 'stardust', dropChance: 0.08, monsterIconKey: 'astralBeing', monsterHp: 30000, unlockCondition: (state) => state.prestigeLevel >= 15 && state.bosses.frostQueen.isDefeated, unlockText: "15회차 달성 및 보스 '서리 여왕' 처치" },
+    voidChasm: { name: '공허의 심연', material: 'voidEssence', dropChance: 0.05, monsterIconKey: 'voidSpawn', monsterHp: 40000, unlockCondition: (state) => state.prestigeLevel >= 18 && state.bosses.astralWatcher.isDefeated, unlockText: "18회차 달성 및 보스 '별의 감시자' 처치" },
+    rift: { name: '차원의 균열', material: 'dimensionalFragment', dropChance: 0.1, monsterIconKey: 'dimensionalShadow', monsterHp: 50000, unlockCondition: (state) => (state.prestigeLevel < 18 && state.materials.ancientMapPiece >= 4) || (state.prestigeLevel >= 18 && state.bosses.voidLord.isDefeated), unlockText: (state) => state.prestigeLevel < 18 ? "고대의 지도 조각 4개 수집" : "보스 '공허의 군주' 처치" }
 };
 
 // Boss 데이터 정의
@@ -44,6 +50,48 @@ const bosses = {
             materials: { ancientMapPiece: 1, cursedSoul: 1 }
         }
     },
+    swampGuardian: {
+        name: '늪의 수호자',
+        hp: 500000,
+        zone: 'whisperingWetlands',
+        iconKey: 'swampGuardian',
+        reward: { soulShards: 250000, materials: { guardiansCore: 1 } }
+    },
+    lich: {
+        name: '리치',
+        hp: 1500000,
+        zone: 'sunkenCemetery',
+        iconKey: 'lich',
+        reward: { soulShards: 750000, materials: { phylacteryShard: 1 } }
+    },
+    phoenix: {
+        name: '불사조',
+        hp: 5000000,
+        zone: 'scorchedDesert',
+        iconKey: 'phoenix',
+        reward: { soulShards: 2500000, materials: { phoenixFeather: 1 } }
+    },
+    crystalTitan: {
+        name: '수정 타이탄',
+        hp: 15000000,
+        zone: 'crystalCaverns',
+        iconKey: 'crystalTitan',
+        reward: { soulShards: 7500000, materials: { titansHeart: 1 } }
+    },
+    astralWatcher: {
+        name: '별의 감시자',
+        hp: 40000000,
+        zone: 'astralPlane',
+        iconKey: 'astralWatcher',
+        reward: { soulShards: 20000000, materials: { celestialTear: 1 } }
+    },
+    voidLord: {
+        name: '공허의 군주',
+        hp: 75000000,
+        zone: 'voidChasm',
+        iconKey: 'voidLord',
+        reward: { soulShards: 37500000, materials: { voidCrystal: 1 } }
+    },
     frostQueen: {
         name: '서리 여왕',
         hp: 25000000,
@@ -72,8 +120,20 @@ const itemDisplayNames = {
     cursedBone: '저주받은 뼈',
     fireEssence: '불의 정수',
     frostCrystal: '서리의 결정',
+    spiritDew: '정령의 이슬',
+    graveDust: '무덤의 흙',
+    sandstoneFragment: '사암 파편',
+    crystalShard: '수정 조각',
+    stardust: '별의 먼지',
+    voidEssence: '공허의 정수',
     swiftness: '가속 물약',
-    luck: '행운 물약'
+    luck: '행운 물약',
+    guardiansCore: '수호자의 핵',
+    phylacteryShard: '성물함 파편',
+    phoenixFeather: '불사조의 깃털',
+    titansHeart: '타이탄의 심장',
+    celestialTear: '천체의 눈물',
+    voidCrystal: '공허의 결정'
 };
 // 유물 데이터 정의
 const artifacts = {
@@ -252,6 +312,34 @@ const achievements = {
         reward: { permanentAtk: 5000 },
         rewardText: '영구 공격력 +5k'
     },
+    defeatSwampGuardian: {
+        name: '늪의 지배자',
+        description: '보스 늪의 수호자 처치',
+        isCompleted: (state) => state.bosses.swampGuardian.isDefeated,
+        reward: { permanentAtk: 1500 },
+        rewardText: '영구 공격력 +1.5k'
+    },
+    defeatLich: {
+        name: '불멸을 이긴 자',
+        description: '보스 리치 처치',
+        isCompleted: (state) => state.bosses.lich.isDefeated,
+        reward: { permanentAtk: 2500 },
+        rewardText: '영구 공격력 +2.5k'
+    },
+    defeatPhoenix: {
+        name: '재가 된 불사조',
+        description: '보스 불사조 처치',
+        isCompleted: (state) => state.bosses.phoenix.isDefeated,
+        reward: { permanentAtk: 4000 },
+        rewardText: '영구 공격력 +4k'
+    },
+    defeatCrystalTitan: {
+        name: '결정 파괴자',
+        description: '보스 수정 타이탄 처치',
+        isCompleted: (state) => state.bosses.crystalTitan.isDefeated,
+        reward: { permanentAtk: 8000 },
+        rewardText: '영구 공격력 +8k'
+    },
     reachPrestige10: {
         name: '시간의 여행자',
         description: '계승자의 증표 10레벨 달성',
@@ -279,6 +367,20 @@ const achievements = {
         isCompleted: (state) => state.bosses.frostQueen.isDefeated,
         reward: { permanentAtk: 20000 },
         rewardText: '영구 공격력 +20k'
+    },
+    defeatAstralWatcher: {
+        name: '별의 종결자',
+        description: '보스 별의 감시자 처치',
+        isCompleted: (state) => state.bosses.astralWatcher.isDefeated,
+        reward: { permanentAtk: 30000 },
+        rewardText: '영구 공격력 +30k'
+    },
+    defeatVoidLord: {
+        name: '공허의 정복자',
+        description: '보스 공허의 군주 처치',
+        isCompleted: (state) => state.bosses.voidLord.isDefeated,
+        reward: { permanentAtk: 50000 },
+        rewardText: '영구 공격력 +50k'
     },
     reachPrestige20: {
         name: '전설의 계승자',
@@ -316,15 +418,33 @@ const initialGameState = {
         cursedBone: 0,
         ancientCore: 0,
         venomGland: 0,
+        spiritDew: 0,
+        graveDust: 0,
+        sandstoneFragment: 0,
+        crystalShard: 0,
+        stardust: 0,
+        voidEssence: 0,
+        guardiansCore: 0,
+        phylacteryShard: 0,
+        phoenixFeather: 0,
+        titansHeart: 0,
+        celestialTear: 0,
+        voidCrystal: 0,
         fireEssence: 0,
         cursedSoul: 0,
         frostCrystal: 0,
         monsterKillsByZone: {
             forest: 0,
+            whisperingWetlands: 0,
             cave: 0,
+            sunkenCemetery: 0,
             ruins: 0,
+            scorchedDesert: 0,
             volcano: 0,
+            crystalCaverns: 0,
             mountain: 0,
+            astralPlane: 0,
+            voidChasm: 0,
             rift: 0
         },
         dimensionalFragment: 0,
@@ -354,6 +474,12 @@ const initialGameState = {
         giantSpider: { isDefeated: false },
         cursedKing: { isDefeated: false },
         frostQueen: { isDefeated: false },
+        swampGuardian: { isDefeated: false },
+        lich: { isDefeated: false },
+        phoenix: { isDefeated: false },
+        crystalTitan: { isDefeated: false },
+        astralWatcher: { isDefeated: false },
+        voidLord: { isDefeated: false },
         dimensionEater: { isDefeated: false }
     },
     currentBoss: null,
@@ -425,9 +551,15 @@ const initialGameState = {
     unlockedZones: {
         forest: true,
         cave: false,
+        whisperingWetlands: false,
+        sunkenCemetery: false,
         ruins: false,
+        scorchedDesert: false,
         volcano: false,
+        crystalCaverns: false,
         mountain: false,
+        astralPlane: false,
+        voidChasm: false,
         rift: false
     }
 };
@@ -634,7 +766,7 @@ function loadGame() {
                         // 'bosses', 'artifacts', 'completedAchievements', 'unlockedSkins' 같은 중첩 객체를 안전하게 병합합니다.
                         if (['bosses', 'artifacts', 'completedAchievements'].includes(key)) {
                             if (gameState[key]) { // gameState에 해당 키가 존재하는지 확인
-                                Object.assign(gameState[key], loadedState[key]);
+                                gameState[key] = Object.assign({}, initialGameState[key], loadedState[key]);
                             }
                         } else if (key === 'unlockedSkins' || key === 'offeredMaterials') {
                              // unlockedSkins는 initialGameState의 모든 키를 포함하도록 보장합니다.
@@ -847,12 +979,38 @@ function runFromBoss() {
     currentMonster.hp = monsterMaxHp;
     updateDisplay();
 }
+
+function updateShopVisibility(state) {
+    // 각 재료가 어느 지역에서 나오는지 매핑합니다.
+    const materialToZoneMap = {};
+    for (const zoneId in zones) {
+        const zone = zones[zoneId];
+        if (zone.material) {
+            materialToZoneMap[zone.material] = zone;
+        }
+    }
+
+    const shopItems = document.querySelectorAll('#shop .action-group[data-material]');
+    shopItems.forEach(item => {
+        const materialId = item.dataset.material;
+        const zoneData = materialToZoneMap[materialId];
+        if (zoneData) {
+            // 해당 재료의 획득처인 사냥터의 해금 조건을 직접 확인합니다.
+            const isVisible = zoneData.unlockCondition(state);
+            item.style.display = isVisible ? 'flex' : 'none';
+        }
+    });
+}
+
 // --- 오버레이 메뉴 기능 ---
 function openOverlay(overlayId) {
     closeAllOverlays();
     const overlay = document.getElementById(overlayId);
     if (overlay) {
         overlay.style.display = 'flex';
+        if (overlayId === 'shop-overlay') { // 상점을 열 때 아이템 표시 여부를 업데이트합니다.
+            updateShopVisibility(gameState);
+        } 
     }
 }
 
@@ -890,6 +1048,18 @@ function updateDisplay() {
     document.getElementById('goblin-ear-count').textContent = formatNumber(gameState.materials.goblinEar);
     document.getElementById('cursed-bone-count').textContent = formatNumber(gameState.materials.cursedBone);
     document.getElementById('ancient-core-count').textContent = formatNumber(gameState.materials.ancientCore);
+    document.getElementById('spirit-dew-count').textContent = formatNumber(gameState.materials.spiritDew);
+    document.getElementById('grave-dust-count').textContent = formatNumber(gameState.materials.graveDust);
+    document.getElementById('sandstone-fragment-count').textContent = formatNumber(gameState.materials.sandstoneFragment);
+    document.getElementById('crystal-shard-count').textContent = formatNumber(gameState.materials.crystalShard);
+    document.getElementById('stardust-count').textContent = formatNumber(gameState.materials.stardust);
+    document.getElementById('guardians-core-count').textContent = formatNumber(gameState.materials.guardiansCore);
+    document.getElementById('phylactery-shard-count').textContent = formatNumber(gameState.materials.phylacteryShard);
+    document.getElementById('phoenix-feather-count').textContent = formatNumber(gameState.materials.phoenixFeather);
+    document.getElementById('titans-heart-count').textContent = formatNumber(gameState.materials.titansHeart);
+    document.getElementById('celestial-tear-count').textContent = formatNumber(gameState.materials.celestialTear);
+    document.getElementById('void-crystal-count').textContent = formatNumber(gameState.materials.voidCrystal);
+    document.getElementById('void-essence-count').textContent = formatNumber(gameState.materials.voidEssence);
     document.getElementById('venom-gland-count').textContent = formatNumber(gameState.materials.venomGland);
     document.getElementById('cursed-soul-count').textContent = formatNumber(gameState.materials.cursedSoul);
     document.getElementById('fire-essence-count').textContent = formatNumber(gameState.materials.fireEssence);
@@ -981,26 +1151,37 @@ function updateDisplay() {
     artifactZone.style.display = hasArtifact ? 'block' : 'none';
 
     // 상태창 제물 UI 업데이트 (이제 사용 안함)
-    const offeredSacrificesZone = document.getElementById('offered-sacrifices-zone');
-    const offeredSacrificesList = document.getElementById('offered-sacrifices-list');
-    offeredSacrificesZone.style.display = 'none'; // 상태창에서는 숨김
+    document.getElementById('offered-sacrifices-zone').style.display = 'none'; // 상태창에서는 숨김
 
-    // 전투화면 하단 제물 요약 UI 업데이트
+    // 전투화면 하단 '획득한 보스 재료' 요약 UI 업데이트
     const sacrificesSummaryZone = document.getElementById('sacrifices-summary-zone');
     const sacrificesSummaryList = document.getElementById('sacrifices-summary-list');
     sacrificesSummaryList.innerHTML = '';
-    let hasOffered = false;
-    if (gameState.offeredMaterials) {
-        for (const materialId in gameState.offeredMaterials) {
+    let hasBossMaterial = false;
+
+    // 모든 보스 재료 목록
+    const bossMaterials = [
+        'ancientCore', 'venomGland', 'cursedSoul', 'queensHeart', // 기존 보스 재료
+        'guardiansCore', 'phylacteryShard', 'phoenixFeather', 'titansHeart', 'celestialTear', 'voidCrystal' // 신규 보스 재료
+    ];
+
+    for (const materialId of bossMaterials) {
+        if (gameState.materials[materialId] > 0) {
+            hasBossMaterial = true;
+            const materialName = itemDisplayNames[materialId] || materialId;
+            let tooltipText = `${materialName} 획득`;
+
+            // 제물 효과 또는 치명타 피해량 증가 효과를 툴팁에 추가
             if (gameState.offeredMaterials[materialId]) {
-                hasOffered = true;
-                const materialName = { ancientCore: '고대의 핵', venomGland: '맹독 주머니', queensHeart: '여왕의 심장', cursedSoul: '저주받은 영혼' }[materialId];
-                const materialIcon = `<span class="icon" data-tooltip='${materialName} 바침 (영구 공격력 x2)'>${gameIcons[materialId]}</span>`;
-                sacrificesSummaryList.innerHTML += materialIcon;
+                tooltipText += ' (제물로 바쳐짐: 영구 공격력 x2)';
+            } else if (['guardiansCore', 'phylacteryShard', 'phoenixFeather', 'titansHeart', 'celestialTear', 'voidCrystal'].includes(materialId)) {
+                tooltipText += ' (치명타 피해량 +10%)';
             }
+            const materialIcon = `<span class="icon" data-tooltip='${tooltipText}'>${gameIcons[materialId]}</span>`;
+            sacrificesSummaryList.innerHTML += materialIcon;
         }
     }
-    sacrificesSummaryZone.style.display = hasOffered ? 'flex' : 'none';
+    sacrificesSummaryZone.style.display = hasBossMaterial ? 'flex' : 'none';
 
     // 도전 과제 UI 업데이트
     const achievementPanel = document.getElementById('achievement-panel');
@@ -1067,34 +1248,43 @@ function updateDisplay() {
 
         const isLocked = !isNowUnlocked;
         if (isLocked) {
-            button.classList.add('locked'); // disabled 대신 locked 클래스 사용
+            // 잠긴 사냥터는 보이되, 비활성화하고 툴팁으로 해금 조건 표시
+            button.style.display = 'flex';
+            button.classList.add('locked');
             const newTooltip = `해금 조건: ${typeof zoneData.unlockText === 'function' ? zoneData.unlockText(gameState) : zoneData.unlockText}`;
             if (button.getAttribute('data-tooltip') !== newTooltip) {
                 button.setAttribute('data-tooltip', newTooltip);
             }
         } else {
+            // 해금된 사냥터는 보이도록 처리 (CSS 기본값인 flex로 설정)
+            button.style.display = 'flex';
             button.classList.remove('locked');
-            button.removeAttribute('data-tooltip');
+            button.setAttribute('data-tooltip', zoneData.name); // 기본 툴팁으로 복원
         }
         // 현재 활성화된 사냥터 버튼 강조
         if (zoneId === gameState.currentZone) {
             button.classList.add('active-zone');
-        } else {
-            button.classList.remove('active-zone');
         }
     });
 
     // 보스전 UI 업데이트
     const bossSummonButton = document.getElementById('boss-summon-button');
     const runFromBossButton = document.getElementById('run-from-boss-button');
-    let bossForCurrentZone = null;
     
-    // 현재 지역에 해당하는 보스를 찾습니다.
+    // 현재 지역에 해당하는 모든 보스를 찾습니다.
+    const bossesInCurrentZone = [];
     for (const bossId in bosses) {
         if (bosses[bossId].zone === gameState.currentZone) {
-            bossForCurrentZone = bossId;
-            break;
+            bossesInCurrentZone.push(bossId);
         }
+    }
+
+    // 아직 처치하지 않은 보스를 우선적으로 찾습니다.
+    let bossForCurrentZone = bossesInCurrentZone.find(id => !gameState.bosses[id]?.isDefeated);
+
+    // 모든 보스를 처치했다면, 마지막 보스를 기준으로 다음 지역 이동 버튼을 표시합니다.
+    if (!bossForCurrentZone && bossesInCurrentZone.length > 0) {
+        bossForCurrentZone = bossesInCurrentZone[bossesInCurrentZone.length - 1];
     }
 
     if (!gameState.currentBoss) { // 보스전 중이 아닐 때만 소환/이동 버튼 표시
@@ -1103,17 +1293,26 @@ function updateDisplay() {
 
         if (bossForCurrentZone) {
             if (gameState.bosses[bossForCurrentZone]?.isDefeated) {
-                // 보스를 처치했다면, 다음 지역으로 이동하는 버튼을 표시합니다.
-                const zoneIds = Object.keys(zones);
-                const currentZoneIndex = zoneIds.indexOf(gameState.currentZone);
-                const nextZoneId = zoneIds[currentZoneIndex + 1];
+                // 보스를 처치한 후, 다음 지역의 해금 여부를 확인합니다.
+                let nextZoneId = null;
+                const allZoneIds = Object.keys(zones);
+                const currentZoneIndex = allZoneIds.indexOf(gameState.currentZone);
 
+                // 현재 지역 이후의 모든 지역을 순회하며, 해금 조건을 만족하는 첫 번째 지역을 찾습니다.
+                for (let i = currentZoneIndex + 1; i < allZoneIds.length; i++) {
+                    const potentialNextZoneId = allZoneIds[i];
+                    if (zones[potentialNextZoneId].unlockCondition(gameState)) {
+                        nextZoneId = potentialNextZoneId;
+                        break; // 가장 먼저 해금되는 지역을 찾으면 중단
+                    }
+                }
+                
                 if (nextZoneId && zones[nextZoneId]) {
+                    // 다음에 이동할 수 있는 지역으로 이동 버튼을 표시합니다.
                     bossSummonButton.disabled = false;
                     bossSummonButton.textContent = `${zones[nextZoneId].name}으로 이동`;
                     bossSummonButton.onclick = () => changeZone(nextZoneId);
                 } else {
-                    // 다음 지역이 없으면 (예: 마지막 지역) 처치 완료만 표시합니다.
                     bossSummonButton.disabled = true;
                     bossSummonButton.textContent = `${bosses[bossForCurrentZone].name} (처치 완료)`;
                 }
@@ -1133,16 +1332,17 @@ function updateDisplay() {
                 }
             }
         } else if (gameState.currentZone === 'forest') {
-            // 시작의 숲에는 보스가 없으므로, 다음 지역 해금 조건만 확인합니다.
+            // 시작의 숲: 다음 지역 해금 조건을 만족하면 이동 버튼 표시
             const zoneIds = Object.keys(zones);
             const currentZoneIndex = zoneIds.indexOf(gameState.currentZone);
             const nextZoneId = zoneIds[currentZoneIndex + 1];
             if (nextZoneId && zones[nextZoneId] && zones[nextZoneId].unlockCondition(gameState)) {
+                bossSummonButton.style.display = 'inline-block';
                 bossSummonButton.disabled = false;
                 bossSummonButton.textContent = `${zones[nextZoneId].name}으로 이동`;
                 bossSummonButton.onclick = () => changeZone(nextZoneId);
             } else {
-                bossSummonButton.style.display = 'none'; // 조건 미충족 시 버튼 숨김
+                bossSummonButton.style.display = 'none';
             }
         }
     } else {
@@ -1214,6 +1414,12 @@ function updateDisplay() {
     document.getElementById('summary-fire-essence-count').textContent = formatNumber(gameState.materials.fireEssence);
     document.getElementById('summary-frost-crystal-count').textContent = formatNumber(gameState.materials.frostCrystal);
     document.getElementById('summary-map-piece-count').textContent = formatNumber(gameState.materials.ancientMapPiece);
+    document.getElementById('summary-spirit-dew-count').textContent = formatNumber(gameState.materials.spiritDew);
+    document.getElementById('summary-grave-dust-count').textContent = formatNumber(gameState.materials.graveDust);
+    document.getElementById('summary-sandstone-fragment-count').textContent = formatNumber(gameState.materials.sandstoneFragment);
+    document.getElementById('summary-crystal-shard-count').textContent = formatNumber(gameState.materials.crystalShard);
+    document.getElementById('summary-stardust-count').textContent = formatNumber(gameState.materials.stardust);
+    document.getElementById('summary-void-essence-count').textContent = formatNumber(gameState.materials.voidEssence);
     document.getElementById('summary-dimensional-fragment-count').textContent = formatNumber(gameState.materials.dimensionalFragment);
 
     // 일반 몬스터 HP 바 업데이트
@@ -1235,6 +1441,18 @@ function initializeIcons() {
     document.getElementById('icon-goblin-ear').innerHTML = gameIcons.goblin;
     document.getElementById('icon-cursed-bone').innerHTML = gameIcons.bone;
     document.getElementById('icon-ancient-core').innerHTML = gameIcons.ancientCore;
+    document.getElementById('icon-spirit-dew').innerHTML = gameIcons.spiritDew;
+    document.getElementById('icon-grave-dust').innerHTML = gameIcons.graveDust;
+    document.getElementById('icon-sandstone-fragment').innerHTML = gameIcons.sandstoneFragment;
+    document.getElementById('icon-crystal-shard').innerHTML = gameIcons.crystalShard;
+    document.getElementById('icon-stardust').innerHTML = gameIcons.stardust;
+    document.getElementById('icon-guardians-core').innerHTML = gameIcons.guardiansCore;
+    document.getElementById('icon-phylactery-shard').innerHTML = gameIcons.phylacteryShard;
+    document.getElementById('icon-phoenix-feather').innerHTML = gameIcons.phoenixFeather;
+    document.getElementById('icon-titans-heart').innerHTML = gameIcons.titansHeart;
+    document.getElementById('icon-celestial-tear').innerHTML = gameIcons.celestialTear;
+    document.getElementById('icon-void-crystal').innerHTML = gameIcons.voidCrystal;
+    document.getElementById('icon-void-essence').innerHTML = gameIcons.voidEssence;
     document.getElementById('icon-venom-gland').innerHTML = gameIcons.venomGland;
     document.getElementById('icon-cursed-soul').innerHTML = gameIcons.cursedSoul;
     document.getElementById('icon-fire-essence').innerHTML = gameIcons.fireEssence;
@@ -1269,6 +1487,12 @@ function initializeIcons() {
     document.getElementById('summary-icon-cursed-bone').innerHTML = gameIcons.bone;
     document.getElementById('summary-icon-fire-essence').innerHTML = gameIcons.fireEssence;
     document.getElementById('summary-icon-frost-crystal').innerHTML = gameIcons.frostCrystal;
+    document.getElementById('summary-icon-spirit-dew').innerHTML = gameIcons.spiritDew;
+    document.getElementById('summary-icon-grave-dust').innerHTML = gameIcons.graveDust;
+    document.getElementById('summary-icon-sandstone-fragment').innerHTML = gameIcons.sandstoneFragment;
+    document.getElementById('summary-icon-crystal-shard').innerHTML = gameIcons.crystalShard;
+    document.getElementById('summary-icon-stardust').innerHTML = gameIcons.stardust;
+    document.getElementById('summary-icon-void-essence').innerHTML = gameIcons.voidEssence;
     document.getElementById('summary-icon-crit-chance').innerHTML = gameIcons.critChance;
     document.getElementById('summary-icon-total-attacks').innerHTML = gameIcons.dps; // dps 아이콘 재사용
     document.getElementById('summary-icon-dimensional-fragment').innerHTML = gameIcons.dimensionalFragment;
@@ -1285,11 +1509,17 @@ function initializeIcons() {
     document.getElementById('icon-evolution-trigger').innerHTML = gameIcons.upgrade;
     document.getElementById('zone-icon-forest').innerHTML = gameIcons.zoneForest;
     document.getElementById('icon-offline-reward').innerHTML = gameIcons.hourglassOfTime;
+    document.getElementById('zone-icon-whispering-wetlands').innerHTML = gameIcons.zoneWhisperingWetlands;
     document.getElementById('zone-icon-cave').innerHTML = gameIcons.zoneCave;
+    document.getElementById('zone-icon-sunken-cemetery').innerHTML = gameIcons.zoneSunkenCemetery;
     document.getElementById('zone-icon-ruins').innerHTML = gameIcons.zoneRuins;
+    document.getElementById('zone-icon-scorched-desert').innerHTML = gameIcons.zoneScorchedDesert;
     document.getElementById('icon-toggle-ui').innerHTML = gameIcons.eye;
     document.getElementById('zone-icon-volcano').innerHTML = gameIcons.zoneVolcano;
+    document.getElementById('zone-icon-crystal-caverns').innerHTML = gameIcons.zoneCrystalCaverns;
     document.getElementById('zone-icon-mountain').innerHTML = gameIcons.zoneMountain;
+    document.getElementById('zone-icon-astral-plane').innerHTML = gameIcons.zoneAstralPlane;
+    document.getElementById('zone-icon-void-chasm').innerHTML = gameIcons.zoneVoidChasm;
     document.getElementById('zone-icon-rift').innerHTML = gameIcons.dimensionalShadow;
     document.getElementById('music-toggle-button').innerHTML = isMusicPlaying ? gameIcons.musicOn : gameIcons.musicOff;
     document.getElementById('icon-sacrifices').innerHTML = gameIcons.offering;
@@ -1328,7 +1558,13 @@ const materialPrices = {
     cursedBone: { sell: 40, buy: 200 },
     fireEssence: { sell: 100, buy: 500 },
     frostCrystal: { sell: 250, buy: 1250 }
-};
+    ,
+    spiritDew: { buy: 40 },
+    graveDust: { buy: 150 },
+    sandstoneFragment: { buy: 400 },
+    crystalShard: { buy: 800 },
+    stardust: { buy: 1500 },
+    voidEssence: { buy: 2500 }};
 
 function sellMaterial(material, quantity) {
     if (!materialPrices[material]) {
@@ -1379,15 +1615,19 @@ function buyItem(item, quantity) {
     const oldAttacksPerSecond = parseFloat(oldPassiveStats.attacksPerSecond);
 
     const singleItemCost = Math.max(1, Math.round(baseCost));
-    let buyQuantity = quantity;
+    let buyQuantity;
 
-    if (quantity === 'max') {
+    if (typeof quantity === 'number' && quantity <= 1) {
+        // 1 이하의 숫자는 비율로 간주 (e.g., 0.1, 0.5, 1)
+        const shardsToSpend = Math.floor(gameState.soulShards * quantity);
         if (singleItemCost <= 0) return; // 0으로 나누는 오류 방지
-        buyQuantity = Math.floor(gameState.soulShards / singleItemCost);
+        buyQuantity = Math.floor(shardsToSpend / singleItemCost);
+    } else {
+        buyQuantity = quantity; // 기존 로직 (현재는 사용되지 않음)
     }
 
     if (buyQuantity <= 0) {
-        addLogMessage("영혼의 파편이 부족합니다.", 'error');
+        addLogMessage("구매할 수량이 없습니다. (파편 부족)", 'error');
         return;
     }
 
@@ -2201,7 +2441,13 @@ function calculatePassiveStats() {
         curseDamage: gameState.curseDamage,
         fireLevel: gameState.fireLevel,
         frostLevel: gameState.frostLevel,
-        soulReapLevel: gameState.soulReapLevel
+        soulReapLevel: gameState.soulReapLevel,
+        // 신규 재료 효과를 위한 스탯 추가
+        skillDamageBonus: 0,
+        whetstoneDurationBonus: 0,
+        elementalResistanceDebuff: 0,
+        artifactPowerBonus: 0,
+        prestigeDamageMultiplier: 1
     };
 
     // 재료에 따른 패시브 능력치 적용 (예: 로그 함수로 점감 효과)
@@ -2212,13 +2458,40 @@ function calculatePassiveStats() {
 
     stats.critDamage += Math.log2(gameState.materials.goblinEar + 1) * 0.1;
     stats.curseDamage += Math.log2(gameState.materials.cursedBone + 1) * 20;
+
+    // 신규 보스 재료 보유 효과: 재료당 치명타 피해량 10% (0.1) 증가
+    if (gameState.materials.guardiansCore > 0) stats.critDamage += 0.1;
+    if (gameState.materials.phylacteryShard > 0) stats.critDamage += 0.1;
+    if (gameState.materials.phoenixFeather > 0) stats.critDamage += 0.1;
+    if (gameState.materials.titansHeart > 0) stats.critDamage += 0.1;
+    if (gameState.materials.celestialTear > 0) stats.critDamage += 0.1;
+    if (gameState.materials.voidCrystal > 0) stats.critDamage += 0.1;
+
     stats.fireLevel += Math.floor(Math.log2(gameState.materials.fireEssence + 1));
     stats.frostLevel += Math.floor(Math.log2(gameState.materials.frostCrystal + 1));
     stats.poisonLevel += Math.floor(Math.log2(gameState.materials.slimeCore + 1) * 5);
     // monsterKillsByZone을 gameState.materials 하위로 이동했으므로, 이 부분은 그대로 둡니다.
     // 만약 별도의 객체로 유지한다면, loadGame에서 병합 로직을 추가해야 합니다.
-    if (!gameState.materials.monsterKillsByZone) {
-        gameState.materials.monsterKillsByZone = { forest: 0, cave: 0, ruins: 0, volcano: 0, mountain: 0, rift: 0 };
+
+    // --- 신규 재료 보유 효과 추가 ---
+    // 정령의 이슬: 스킬 피해량 증가 (연쇄 번개, 지옥불 일격 등)
+    stats.skillDamageBonus += Math.log2(gameState.materials.spiritDew + 1) * 0.05; // 5% per log2
+    // 무덤의 흙: 저주 피해량 및 영혼 수확 레벨 추가 증가
+    stats.curseDamage *= 1 + (Math.log2(gameState.materials.graveDust + 1) * 0.1); // 10% multiplier
+    stats.soulReapLevel += Math.floor(Math.log2(gameState.materials.graveDust + 1) * 0.5);
+    // 사암 파편: 화염 레벨 및 숫돌 지속시간 증가
+    stats.fireLevel += Math.floor(Math.log2(gameState.materials.sandstoneFragment + 1) * 0.5);
+    stats.whetstoneDurationBonus += Math.log2(gameState.materials.sandstoneFragment + 1) * 0.1; // 0.1초 per log2
+    // 수정 조각: 냉기 레벨 및 적 속성 저항 감소
+    stats.frostLevel += Math.floor(Math.log2(gameState.materials.crystalShard + 1) * 0.5);
+    stats.elementalResistanceDebuff += Math.log2(gameState.materials.crystalShard + 1) * 0.01; // 1% per log2
+    // 별의 먼지: 유물 효과 증폭
+    stats.artifactPowerBonus += Math.log2(gameState.materials.stardust + 1) * 0.02; // 2% per log2
+    // 공허의 정수: 회차 레벨 비례 피해량 증폭
+    stats.prestigeDamageMultiplier += (Math.log2(gameState.materials.voidEssence + 1) * 0.001) * gameState.prestigeLevel;
+
+    if (!gameState.materials.monsterKillsByZone) { // 안전장치
+        gameState.materials.monsterKillsByZone = JSON.parse(JSON.stringify(initialGameState.materials.monsterKillsByZone));
     }
 
     stats.soulReapLevel += Math.floor(Math.log2(gameState.materials.cursedBone + 1));
@@ -2296,6 +2569,7 @@ function activateWhetstoneEffect() {
     }
 
     // 1초 후에 효과를 비활성화
+    const whetstoneDuration = 2000 + (calculatePassiveStats().currentStats.whetstoneDurationBonus * 1000);
     whetstoneTimeoutId = setTimeout(() => {
         gameState.isWhetstoneActive = false;
         document.getElementById('whetstone-aura').classList.remove('active');
@@ -2406,14 +2680,14 @@ function calculateDps(stats, interval, aps) {
     if (gameState.evolutionLevel >= 1) {
         // 1차: 연쇄 번개 (5회 공격마다)
         let lightningDamage = baseAttack * 3;
-        const runestoneBonus = gameState.artifacts.blessingOfAncientGod ? 1.50 : 1.25;
+        const runestoneBonus = 1 + (gameState.artifacts.blessingOfAncientGod ? 0.50 : 0.25);
         if (gameState.artifacts.ancientRunestone) lightningDamage *= runestoneBonus;
         evolutionSkillDps += (lightningDamage / 5) * attacksPerSecondNum;
     }
     if (gameState.evolutionLevel >= 2) {
         // 2차: 지옥불 일격 (10회 공격마다)
         let infernoDamage = (baseAttack * 2) + (currentStats.poisonLevel + currentStats.fireLevel) * 50;
-        const runestoneBonus = gameState.artifacts.blessingOfAncientGod ? 1.50 : 1.25;
+        const runestoneBonus = 1 + (gameState.artifacts.blessingOfAncientGod ? 0.50 : 0.25);
         if (gameState.artifacts.ancientRunestone) infernoDamage *= runestoneBonus;
         evolutionSkillDps += (infernoDamage / 10) * attacksPerSecondNum;
     }
@@ -2422,6 +2696,9 @@ function calculateDps(stats, interval, aps) {
         let frostbiteDamage = (baseAttack * 5) + (baseAttack * currentStats.frostLevel * 0.5);
         evolutionSkillDps += (frostbiteDamage / 7) * attacksPerSecondNum;
     }
+
+    // 정령의 이슬 효과 적용 (모든 스킬 피해량 증가)
+    evolutionSkillDps *= (1 + currentStats.skillDamageBonus);
 
     // 독/저주 DPS는 공격력과 별개로 초당 적용되므로, 공격 횟수와 곱하지 않습니다.
     let poisonDps = currentStats.poisonLevel * 2;
@@ -2442,7 +2719,11 @@ function calculateDps(stats, interval, aps) {
 
     // 회차 피해량 보너스 적용    
     const prestigeDamageBonus = 1 + (gameState.prestigeLevel * 0.01); // 1% per level
-    return totalDps * prestigeDamageBonus;
+    totalDps *= prestigeDamageBonus;
+
+    // 공허의 정수 효과 적용 (최종 피해량 증폭)
+    totalDps *= currentStats.prestigeDamageMultiplier;
+    return totalDps;
 }
 
 function changeSkin() {
