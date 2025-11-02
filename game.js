@@ -5,7 +5,7 @@ console.log("게임 로직이 시작되었습니다!");
 // Zone 데이터 정의
 const zones = {
     forest: { name: '시작의 숲', material: 'slimeCore', dropChance: 0.5, monsterIconKey: 'slime', monsterHp: 10, unlockCondition: () => true },
-    whisperingWetlands: { name: '속삭이는 습지', material: 'spiritDew', dropChance: 0.4, monsterIconKey: 'swampSpirit', monsterHp: 50, unlockCondition: (state) => state.prestigeLevel >= 3, unlockText: "3회차 달성" },
+    whisperingWetlands: { name: '속삭이는 습지', material: 'spiritDew', dropChance: 0.4, monsterIconKey: 'swampSpirit', monsterHp: 50, unlockCondition: (state) => state.prestigeLevel >= 3 && state.materials.monsterKillsByZone.forest >= 100 * (state.prestigeLevel + 1), unlockText: (state) => `시작의 숲 몬스터 ${100 * (state.prestigeLevel + 1)}마리 처치 (3회차 이상)` },
     cave: { name: '어두운 동굴', material: 'goblinEar', dropChance: 0.3, monsterIconKey: 'goblin', monsterHp: 100, unlockCondition: (state) => (state.prestigeLevel < 3 && state.materials.monsterKillsByZone.forest >= 100 * (state.prestigeLevel + 1)) || (state.prestigeLevel >= 3 && state.bosses.swampGuardian.isDefeated), unlockText: (state) => state.prestigeLevel < 3 ? `시작의 숲 몬스터 ${100 * (state.prestigeLevel + 1)}마리 처치` : "보스 '늪의 수호자' 처치" },
     sunkenCemetery: { name: '가라앉은 묘지', material: 'graveDust', dropChance: 0.25, monsterIconKey: 'ghoul', monsterHp: 300, unlockCondition: (state) => state.prestigeLevel >= 6 && state.bosses.giantSpider.isDefeated, unlockText: "6회차 달성 및 보스 '거대 거미' 처치" },
     ruins: { name: '저주받은 폐허', material: 'cursedBone', dropChance: 0.2, monsterIconKey: 'skeleton', monsterHp: 600, unlockCondition: (state) => (state.prestigeLevel < 6 && state.bosses.giantSpider.isDefeated) || (state.prestigeLevel >= 6 && state.bosses.lich.isDefeated), unlockText: (state) => state.prestigeLevel < 6 ? "보스 '거대 거미' 처치" : "보스 '리치' 처치" },
@@ -604,8 +604,8 @@ function addLogMessage(message, type = 'normal') {
 
     toastContainer.appendChild(toastMessage);
 
-    // 최대 4개의 로그만 유지
-    if (toastContainer.children.length > 4) {
+    // 최대 2개의 로그만 유지
+    if (toastContainer.children.length > 2) {
         toastContainer.removeChild(toastContainer.firstChild);
     }
 
@@ -659,7 +659,7 @@ function showDamageText(damage, type = 'normal') {
 
     if (type.startsWith('superCrit')) {
         const multiplier = parseFloat(type.split(':')[1]).toFixed(1);
-        damageEl.innerHTML = `${formatNumber(damage)} <span class="super-crit-multiplier">(x${multiplier}배!)</span>`;
+        damageEl.innerHTML = `${formatNumber(damage)}`;
     } else {
         damageEl.textContent = formatNumber(damage);
     }
@@ -995,6 +995,12 @@ function updateShopVisibility(state) {
         const materialId = item.dataset.material;
         const zoneData = materialToZoneMap[materialId];
         if (zoneData) {
+            // 슬라임 코어, 고블린 귀, 저주받은 뼈는 항상 보이도록 예외 처리
+            if (['slimeCore', 'goblinEar', 'cursedBone'].includes(materialId)) {
+                item.style.display = 'flex';
+                return; // 다음 아이템으로 넘어감
+            }
+
             // 해당 재료의 획득처인 사냥터의 해금 조건을 직접 확인합니다.
             const isVisible = zoneData.unlockCondition(state);
             item.style.display = isVisible ? 'flex' : 'none';
@@ -1166,7 +1172,7 @@ function updateDisplay() {
     ];
 
     for (const materialId of bossMaterials) {
-        if (gameState.materials[materialId] > 0) {
+        if (gameState.materials[materialId] > 0 || gameState.offeredMaterials[materialId]) {
             hasBossMaterial = true;
             const materialName = itemDisplayNames[materialId] || materialId;
             let tooltipText = `${materialName} 획득`;
@@ -1264,6 +1270,8 @@ function updateDisplay() {
         // 현재 활성화된 사냥터 버튼 강조
         if (zoneId === gameState.currentZone) {
             button.classList.add('active-zone');
+        } else {
+            button.classList.remove('active-zone');
         }
     });
 
@@ -1332,15 +1340,24 @@ function updateDisplay() {
                 }
             }
         } else if (gameState.currentZone === 'forest') {
-            // 시작의 숲: 다음 지역 해금 조건을 만족하면 이동 버튼 표시
-            const zoneIds = Object.keys(zones);
-            const currentZoneIndex = zoneIds.indexOf(gameState.currentZone);
-            const nextZoneId = zoneIds[currentZoneIndex + 1];
-            if (nextZoneId && zones[nextZoneId] && zones[nextZoneId].unlockCondition(gameState)) {
+            // 시작의 숲: 다음에 해금될 수 있는 지역을 찾아 이동 버튼 표시
+            let nextAvailableZoneId = null;
+            const allZoneIds = Object.keys(zones);
+            const currentZoneIndex = allZoneIds.indexOf(gameState.currentZone);
+
+            // 시작의 숲 다음 지역부터 순회하며 해금 조건을 만족하는 첫 지역을 찾음
+            for (let i = currentZoneIndex + 1; i < allZoneIds.length; i++) {
+                const potentialNextZoneId = allZoneIds[i];
+                if (zones[potentialNextZoneId].unlockCondition(gameState)) {
+                    nextAvailableZoneId = potentialNextZoneId;
+                    break;
+                }
+            }
+            if (nextAvailableZoneId) {
                 bossSummonButton.style.display = 'inline-block';
                 bossSummonButton.disabled = false;
-                bossSummonButton.textContent = `${zones[nextZoneId].name}으로 이동`;
-                bossSummonButton.onclick = () => changeZone(nextZoneId);
+                bossSummonButton.textContent = `${zones[nextAvailableZoneId].name}으로 이동`;
+                bossSummonButton.onclick = () => changeZone(nextAvailableZoneId);
             } else {
                 bossSummonButton.style.display = 'none';
             }
@@ -2422,11 +2439,10 @@ document.body.addEventListener('click', (event) => {
     // event.target에서 가장 가까운 [data-tooltip] 속성을 가진 부모 요소를 찾습니다.
     const tooltipElement = event.target.closest('[data-tooltip]');
 
-    // 툴팁 요소가 존재하고, 모바일 환경(hover 미지원)이며, 사냥터 버튼이 아닐 경우에만 실행합니다.
-    if (tooltipElement && window.matchMedia("(hover: none)").matches && !tooltipElement.hasAttribute('data-zone')) {
+    // 툴팁 요소가 존재하면, 해당 내용을 토스트 메시지로 보여줍니다.
+    if (tooltipElement) {
         const tooltipText = tooltipElement.getAttribute('data-tooltip');
         if (tooltipText) {
-            // 토스트 팝업으로 툴팁 내용을 보여줍니다.
             addLogMessage(tooltipText, 'special');
         }
     }

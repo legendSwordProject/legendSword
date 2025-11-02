@@ -13,6 +13,7 @@ body {
     text-align: center;
     font-size: 14px;
     margin: 0;
+    overflow-x: hidden; /* 모바일에서 의도치 않은 가로 스크롤 방지 */
 }
 
 h1 {
@@ -34,7 +35,7 @@ h1 {
     background-color: #2a2a2a;
     border: 2px solid #555;
     border-radius: 8px;
-    padding: 20px;
+    padding: 10px;
     margin-bottom: 20px;
     box-shadow: 0 0 10px rgba(0,0,0,0.5), inset 0 0 5px rgba(0,0,0,0.3);
 }
@@ -498,41 +499,6 @@ button:disabled {
     text-shadow: 1px 1px 2px black;
 }
 
-/* 툴팁 스타일 */
-[data-tooltip] {
-    position: relative;
-    cursor: pointer; /* 클릭 가능함을 표시 */
-}
-
-[data-tooltip]::after {
-    content: attr(data-tooltip);
-    position: absolute;
-    bottom: 110%;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: #111;
-    color: #fff;
-    padding: 8px 12px;
-    border-radius: 6px;
-    border: 1px solid #ffc107;
-    font-size: 12px;
-    white-space: nowrap;
-    z-index: 10;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.2s, visibility 0.2s;
-}
-
-[data-tooltip]:hover::after {
-    opacity: 1;
-    visibility: visible;
-}
-
-/* 모바일에서는 hover 툴팁을 숨김 */
-@media (hover: none) {
-    [data-tooltip]::after { display: none; }
-}
-
 /* 엔딩 화면 스타일 */
 #ending-screen {
     position: fixed;
@@ -673,13 +639,15 @@ button:disabled {
 
 /* 토스트 팝업 로그 스타일 */
 #toast-container {
-    position: fixed;
-    bottom: 80px; /* 내비게이션 바 위 */
+    position: fixed;    
+    /* 모바일 브라우저의 UI 변화에도 위치가 흔들리지 않도록 calc와 vh 단위를 사용합니다. */
+    bottom: calc(10vh + 20px); /* 하단 메뉴(약 10vh)보다 20px 위에 위치 */
     left: 10px;
-    z-index: 999;
+    z-index: 999;    
     display: flex;
-    flex-direction: column-reverse;
+    flex-direction: column-reverse; /* 메시지가 아래에서 위로 쌓이도록 복원 */
     gap: 8px;
+    max-width: 80%; /* 토스트 메시지가 화면 너비를 초과하지 않도록 제한합니다. */
     pointer-events: none; /* 팝업이 클릭 방해하지 않도록 설정 */
 }
 
@@ -709,6 +677,15 @@ button:disabled {
     10% { opacity: 1; transform: translateX(0); }
     90% { opacity: 1; transform: translateX(0); }
     100% { opacity: 0; transform: translateX(20px); }
+}
+
+/* 모바일에서 상점 레이아웃이 깨지는 것을 방지합니다. */
+@media (max-width: 400px) {
+    .overlay-content .action-group {
+        flex-direction: column; /* 세로로 배치 */
+        align-items: flex-start; /* 왼쪽 정렬 */
+        gap: 5px; /* 아이템 간 간격 추가 */
+    }
 }
 
 /* 반응형 디자인 (모바일 화면 대응) */
@@ -812,6 +789,10 @@ button:disabled {
     position: relative; /* 알림 점을 위한 기준점 */
     flex-grow: 1;
     padding: 12px 5px; /* 모바일 화면에서 텍스트가 깨지지 않도록 좌우 패딩을 줄입니다. */
+    /* 아이콘과 텍스트를 세로로 배치하여 가로 공간을 절약합니다. */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     margin: 0 5px;
 }
 
@@ -1008,11 +989,12 @@ button:disabled {
 }
 
 .damage-text.superCrit {
-    font-size: 30px; /* 폰트 크기 약간 조정 */
+    font-size: 25px; /* 폰트 크기 약간 조정 */
     color: #c37de4; /* 보라색 */
     animation-duration: 1.8s; /* 애니메이션 시간 증가 */
     display: flex;
     align-items: baseline;
+    white-space: normal; /* 텍스트가 길어질 경우 줄바꿈을 허용하여 가로 스크롤 방지 */
 }
 
 .super-crit-multiplier {
