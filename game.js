@@ -380,6 +380,16 @@ const initialGameState = {
     },
     currentSkin: 'default',
     showToastPopups: true,
+    floatingTextSettings: {
+        normal: true,
+        crit: true,
+        fire: true,
+        frost: true,
+        lightning: true,
+        dimensionalFragment: true,
+        soulShards: true,
+        material: true,
+    },
     isCombatUiHidden: false,
     offeredMaterials: {
         ancientCore: false,
@@ -414,6 +424,8 @@ let chaliceIntervalId = null;
 let lastAttackTime = 0; // 마지막 공격 시간을 기록하여 정확한 공격 속도를 보장합니다.
 let swiftnessPotionTimeoutId = null;
 let luckPotionTimeoutId = null; // 물약 타이머 ID
+let attacksThisSecond = 0; // 실제 초당 공격 횟수 측정을 위한 카운터
+let lastSecondTimestamp = 0; // 마지막으로 초당 공격 횟수를 업데이트한 시간
 let musicParts = { melody: null, bass: null, harmony: null };
 let totalDamage = 0; // 데미지 계산을 위한 전역 변수
 let lastEffectTime = {}; // 효과음 중복 재생 방지를 위한 객체
@@ -470,6 +482,9 @@ function showVfx(effectClass) {
 
 // --- 플로팅 데미지 텍스트 기능 ---
 function showDamageText(damage, type = 'normal') {
+    // 개별 텍스트 설정 확인
+    if (!gameState.floatingTextSettings[type]) return;
+
     const container = document.getElementById('damage-text-container');
     if (!container) return;
 
@@ -492,6 +507,13 @@ function showDamageText(damage, type = 'normal') {
 
 // --- 플로팅 재화 텍스트 기능 ---
 function showLootText(amount, type) {
+    if (type === 'soulShards') {
+        if (!gameState.floatingTextSettings.soulShards) return;
+    } else {
+        // soulShards가 아닌 모든 경우는 재료로 간주
+        if (!gameState.floatingTextSettings.material) return;
+    }
+
     const container = document.getElementById('loot-text-container');
     if (!container) return;
 
@@ -583,6 +605,11 @@ function loadGame() {
                     if (initialGameState[key]) {
                         gameState[key] = Object.assign({}, initialGameState[key], loadedState[key]);
                     } else {
+                        gameState[key] = loadedState[key];
+                    }
+                } else if (key === 'floatingTextSettings') {
+                    if (initialGameState[key]) {
+                        gameState[key] = Object.assign({}, initialGameState[key], loadedState[key]);
                         gameState[key] = loadedState[key];
                     }
                         }else {
@@ -683,6 +710,40 @@ function toggleToastPopups() {
     const button = document.getElementById('toast-toggle-button');
     button.textContent = gameState.showToastPopups ? '토스트 팝업 끄기' : '토스트 팝업 켜기';
     addLogMessage(`토스트 팝업이 ${gameState.showToastPopups ? '활성화' : '비활성화'}되었습니다.`, 'special');
+}
+
+function initializeFloatingTextSettings() {
+    const container = document.getElementById('floating-text-settings');
+    const checkboxGroup = document.createElement('div');
+    checkboxGroup.className = 'checkbox-group';
+
+    const settingLabels = {
+        normal: '일반',
+        crit: '치명타',
+        fire: '화염',
+        frost: '냉기',
+        lightning: '번개',
+        dimensionalFragment: '차원',
+        soulShards: '파편',
+        material: '재료'
+    };
+
+    for (const key in gameState.floatingTextSettings) {
+        const label = document.createElement('label');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = gameState.floatingTextSettings[key];
+        checkbox.onchange = () => {
+            gameState.floatingTextSettings[key] = checkbox.checked;
+        };
+        label.appendChild(checkbox);
+        label.appendChild(document.createTextNode(` ${settingLabels[key] || key}`));
+        checkboxGroup.appendChild(label);
+    }
+    container.appendChild(checkboxGroup);
+}
+
+function updateFloatingTextSettingsUI() {
 }
 
 function runFromBoss() {
@@ -1031,6 +1092,16 @@ function updateDisplay() {
     const toastToggleButton = document.getElementById('toast-toggle-button');
     toastToggleButton.textContent = gameState.showToastPopups ? '토스트 팝업 끄기' : '토스트 팝업 켜기';
 
+    // UI가 생성된 후에만 체크박스 상태를 업데이트합니다.
+    const checkboxes = document.querySelectorAll('#floating-text-settings input[type="checkbox"]');
+    if (checkboxes.length > 0) {
+        for (const key in gameState.floatingTextSettings) {
+            const checkbox = document.querySelector(`#floating-text-settings input[onchange*="${key}"]`);
+            if (checkbox) {
+                checkbox.checked = gameState.floatingTextSettings[key];
+            }
+        }
+    }
     if (gameState.isGameFinished) {
         showEnding();
     }
@@ -1140,6 +1211,7 @@ function initializeIcons() {
     document.getElementById('summary-icon-total-attacks').innerHTML = gameIcons.dps; // dps 아이콘 재사용
     document.getElementById('summary-icon-dimensional-fragment').innerHTML = gameIcons.dimensionalFragment;
     document.getElementById('summary-icon-attack-speed').innerHTML = gameIcons.attackSpeed;
+    document.getElementById('summary-icon-real-attack-speed').innerHTML = gameIcons.attackSpeed; // 아이콘 재사용
     document.getElementById('summary-icon-map-piece').innerHTML = gameIcons.ancientMapPiece;    
     document.getElementById('icon-swiftness-potion').innerHTML = gameIcons.swiftnessPotion;
     document.getElementById('icon-luck-potion-btn').innerHTML = gameIcons.luckPotion;
@@ -1456,14 +1528,9 @@ function changeZone(zoneName) {
 function runGameLoop() {
     if (gameState.isGameFinished || isResetting) return;
 
-    // 실제 공격이 발생했을 때만 애니메이션과 데미지 텍스트를 표시합니다.
-    triggerAnimation('sword-container', 'attack-animation');
-    let hasAttacked = false; // 공격 발생 여부를 추적하는 플래그
+    const now = Date.now();
+    let { currentStats, attackInterval: baseAttackInterval, attacksPerSecond } = calculatePassiveStats();
 
-    const now = Date.now();    
-    let { currentStats, attackInterval: baseAttackInterval, attacksPerSecond } = calculatePassiveStats(); // Get base values
-
-    // 가속 물약 효과    
     if (gameState.isPotionActive) {
         const speedMultiplier = gameState.artifacts.hourglassOfTime ? 4 : 2;
         baseAttackInterval /= speedMultiplier; // Apply potion effect to the base interval
@@ -1471,253 +1538,149 @@ function runGameLoop() {
 
     // 마지막 공격 시간으로부터 attackInterval만큼 지났는지 확인
     // 여러 번의 공격이 밀렸을 경우를 처리하기 위해 while 루프 사용
+    if (now >= lastAttackTime + baseAttackInterval) {
+        // 공격 애니메이션은 루프당 한 번만 실행하여 시각적 과부하를 방지합니다.
+        triggerAnimation('sword-container', 'attack-animation');
+        const swordContainer = document.getElementById('sword-container');
+        const animationDuration = Math.max(0.05, (baseAttackInterval / 1000) * 0.8);
+        swordContainer.style.animationDuration = `${animationDuration}s`;
+    }
+
     while (now >= lastAttackTime + baseAttackInterval) {
-        lastAttackTime += baseAttackInterval; // 다음 공격 시간을 예약합니다.
-        hasAttacked = true; // 공격이 발생했음을 표시
-    }
+        lastAttackTime += baseAttackInterval;
 
-    // 공격 속도에 맞춰 애니메이션 속도 조절
-    const swordContainer = document.getElementById('sword-container');
-    // 애니메이션이 공격 간격보다 약간 빠르게 끝나도록 설정 (최소 0.05초)
-    const animationDuration = Math.max(0.05, (baseAttackInterval / 1000) * 0.8); // Use the potentially modified interval
-    swordContainer.style.animationDuration = `${animationDuration}s`;
+        // --- 데미지 계산 (루프 내부로 이동) ---
+        gameState.totalAttacks++;
 
-    // --- 데미지 계산 ---
-    let currentAttackPower = currentStats.attackPower; // 이 변수는 이 함수 내에서만 사용됩니다.
-    if (!hasAttacked) {
-        return; // 공격이 발생하지 않았으면 여기서 루프를 종료합니다.
-    }
-    gameState.totalAttacks++; // 실제 공격이 발생했을 때만 카운트 증가
+        attacksThisSecond++; // 실제 공격 횟수 카운트 증가
+        let currentAttackPower = currentStats.attackPower;
+        if (gameState.artifacts.blacksmithsWhetstone) {
+            currentAttackPower *= 1.10;
+        }
 
-    // 대장장이의 숫돌 유물 효과
-    if (gameState.artifacts.blacksmithsWhetstone) {
-        currentAttackPower *= 1.10;
-    }
+        let finalAttackPower = currentAttackPower;
+        let critDamage = currentStats.critDamage;
+        if (gameState.artifacts.tomeOfSecrets) {
+            critDamage += 0.5;
+        }
+        let isCrit = false;
+        if (Math.random() < currentStats.critChance) {
+            isCrit = true;
+            finalAttackPower *= critDamage;
+            triggerAnimation('monster-container', 'monster-shake-animation');
+            playSoundEffect('critSlash');
+            triggerAnimation('sword-container', 'crit-attack-animation');
+        }
 
-    // 치명타 계산
-    let finalAttackPower = currentAttackPower;
-    let critDamage = currentStats.critDamage;
-    if (gameState.artifacts.tomeOfSecrets) {
-        critDamage += 0.5;
-    }
-    let isCrit = false;
-    if (Math.random() < currentStats.critChance) {
-        isCrit = true;
-        finalAttackPower *= critDamage;
-        triggerAnimation('monster-container', 'monster-shake-animation');
-        // 치명타 효과음 재생
-        playSoundEffect('critSlash');
-        triggerAnimation('sword-container', 'crit-attack-animation');
-    }
+        if (currentStats.fireLevel > 0 && Math.random() < 0.1) {
+            const burnDamage = (currentStats.attackPower * 0.2) * currentStats.fireLevel;
+            const finalBurnDamage = burnDamage * (1 + gameState.prestigeLevel);
+            showVfx('vfx-fire');
+            showDamageText(finalBurnDamage, 'fire');
+            for (let i = 1; i <= 3; i++) {
+                setTimeout(() => gameState.soulShards += finalBurnDamage, i * 1000);
+            }
+        }
 
-    // 화염 부여 (화상 효과)
-    if (currentStats.fireLevel > 0 && Math.random() < 0.1) { // 10% 확률로 화상
-        const burnDamage = (currentStats.attackPower * 0.2) * currentStats.fireLevel; // 초당 공격력의 20% * 화염레벨
-        const finalBurnDamage = burnDamage * (1 + gameState.prestigeLevel); // 회차 보너스 적용
-        showVfx('vfx-fire');
-        showDamageText(finalBurnDamage, 'fire');
-        for (let i = 1; i <= 3; i++) { // 3초간 지속
-            setTimeout(() => gameState.soulShards += finalBurnDamage, i * 1000);
+        if (currentStats.frostLevel > 0 && Math.random() < 0.15) {
+            const frostDamage = (currentStats.attackPower * 0.1) * currentStats.frostLevel;
+            showVfx('vfx-lightning');
+            showDamageText(frostDamage, 'frost');
+            gameState.soulShards += frostDamage * (1 + gameState.prestigeLevel);
+        }
+
+        if (currentStats.poisonLevel > 0) showVfx('vfx-poison');
+
+        let totalDamage = finalAttackPower;
+        const prestigeDamageBonus = 1 + (gameState.prestigeLevel * 0.01);
+        totalDamage *= prestigeDamageBonus;
+
+        if (gameState.evolutionLevel >= 1) {
+            gameState.attackCountForPassive++;
+
+            if (gameState.evolutionLevel >= 3 && gameState.attackCountForPassive % 7 === 0) {
+                let frostbiteDamage = (currentStats.attackPower * 5) + (currentStats.attackPower * currentStats.frostLevel * 0.5);
+                showVfx('vfx-lightning');
+                showDamageText(frostbiteDamage, 'frost');
+                totalDamage += frostbiteDamage;
+            }
+
+            if (gameState.evolutionLevel >= 2 && gameState.attackCountForPassive % 10 === 0) {
+                let infernoDamage = (currentStats.attackPower * 2) + (currentStats.poisonLevel + currentStats.fireLevel) * 50;
+                if (gameState.artifacts.ancientRunestone) {
+                    infernoDamage *= 1.25;
+                }
+                showVfx('vfx-fire');
+                showDamageText(infernoDamage, 'fire');
+                totalDamage += infernoDamage;
+            } else if (gameState.attackCountForPassive % 5 === 0) {
+                let lightningDamage = currentStats.attackPower * 3;
+                if (gameState.artifacts.ancientRunestone) {
+                    lightningDamage *= 1.25;
+                }
+                showVfx('vfx-lightning');
+                showDamageText(lightningDamage, 'lightning');
+                totalDamage += lightningDamage;
+            }
+
+        if (gameState.attackCountForPassive >= 70) gameState.attackCountForPassive = 0; // LCM(5, 7, 10) = 70
+        }
+
+        // --- 보스전 또는 일반 사냥 처리 (루프 내부로 이동) ---
+        if (gameState.currentBoss) {
+            const bossZone = bosses[gameState.currentBoss.id].zone;
+            const killsInZone = gameState.materials.monsterKillsByZone[bossZone];
+            const requiredKills = 100 * (gameState.prestigeLevel + 1);
+
+            if (killsInZone >= requiredKills) {
+                const conquestBonusMultiplier = 1 + (Math.floor(killsInZone / 100) * 0.1);
+                let finalBossDamage = totalDamage * conquestBonusMultiplier;
+
+                let fragmentBonusDamage = 0;
+                if (gameState.currentBoss.id === 'dimensionEater' && gameState.materials.dimensionalFragment > 0) {
+                    const fragmentBonus = 1 + (gameState.materials.dimensionalFragment * 0.002);
+                    fragmentBonusDamage = finalBossDamage * (fragmentBonus - 1);
+                    finalBossDamage += fragmentBonusDamage;
+                    showDamageText(fragmentBonusDamage, 'dimensionalFragment');
+                }
+                gameState.currentBoss.hp -= finalBossDamage;
+                gameState.soulShards += (finalBossDamage - fragmentBonusDamage) / 100;
+                showDamageText(finalBossDamage, isCrit ? 'crit' : 'normal');
+            } else {
+                addLogMessage(`[${zones[bossZone].name}] 지역의 몬스터를 ${requiredKills}마리 처치해야 보스에게 피해를 줄 수 있습니다! (${killsInZone}/${requiredKills})`, 'error');
+            }
+
+            if (gameState.currentBoss.hp <= 0) {
+                handleBossDefeat();
+                break; // 보스 처치 시 while 루프 즉시 종료
+            }
+        } else {
+            currentMonster.hp -= totalDamage;
+            showDamageText(totalDamage, isCrit ? 'crit' : 'normal');
+
+            if (currentMonster.hp <= 0) {
+                handleMonsterDefeat(currentStats, totalDamage);
+            }
         }
     }
 
-    // 냉기 부여 (추가 피해)
-    if (currentStats.frostLevel > 0 && Math.random() < 0.15) { // 15% 확률
-        const frostDamage = (currentStats.attackPower * 0.1) * currentStats.frostLevel;
-        showVfx('vfx-lightning'); // 임시로 번개 이펙트 사용
-        showDamageText(frostDamage, 'frost');
-        gameState.soulShards += frostDamage * (1 + gameState.prestigeLevel);
-    }
-
-    // 독, 저주 피해를 영혼 파편으로 직접 전환
-    if (currentStats.poisonLevel > 0) showVfx('vfx-poison');
+    // 독/저주 피해는 공격 횟수와 무관하게 초당 피해이므로 루프 밖에서 한 번만 처리합니다.
+    const loopIntervalSeconds = 16 / 1000; // 0.016초
     let poisonDps = currentStats.poisonLevel * 2;
-    // 맹독 각성 시, 독 데미지에 공격력 계수 추가
     if (gameState.isPoisonEvolved) {
-        const scalingPoisonDps = currentStats.attackPower * (currentStats.poisonLevel / 100); // 독 레벨 1당 공격력의 1%
-        poisonDps += scalingPoisonDps;
+        poisonDps += currentStats.attackPower * (currentStats.poisonLevel / 100);
     }
     const curseDps = currentStats.curseDamage;
+    gameState.soulShards += (poisonDps + curseDps) * loopIntervalSeconds;
 
-    let totalDamage = finalAttackPower;
-
-    // 회차 피해량 보너스 적용
-    const prestigeDamageBonus = 1 + (gameState.prestigeLevel * 0.01);
-    totalDamage *= prestigeDamageBonus;
-
-    // 진화 패시브 스킬 처리
-    if (gameState.evolutionLevel >= 1) {
-        gameState.attackCountForPassive++;
-
-        // 3차 진화 스킬: 7번 공격마다 '혹한의 일격' 발동
-        if (gameState.evolutionLevel >= 3 && gameState.attackCountForPassive % 7 === 0) {
-            // 기본 공격력에 비례하는 기본 피해량 추가
-            let frostbiteDamage = (currentStats.attackPower * 5) + (currentStats.attackPower * currentStats.frostLevel * 0.5);
-            showVfx('vfx-lightning'); // 임시 이펙트
-            showDamageText(frostbiteDamage, 'frost');
-            totalDamage += frostbiteDamage;
-        }
-
-        // 2차 진화 스킬: 10번 공격마다 '지옥불 일격' 발동
-        if (gameState.evolutionLevel >= 2 && gameState.attackCountForPassive % 10 === 0) {
-            // 기본 공격력에 비례하는 기본 피해량 추가
-            let infernoDamage = (currentStats.attackPower * 2) + (currentStats.poisonLevel + currentStats.fireLevel) * 50;
-            if (gameState.artifacts.ancientRunestone) {
-                infernoDamage *= 1.25; // 룬스톤 효과
-            }
-            showVfx('vfx-fire');
-            showDamageText(infernoDamage, 'fire');
-            totalDamage += infernoDamage;
-        }
-        // 1차 진화 스킬: 5번 공격마다 '연쇄 번개' 발동 (지옥불 일격과 겹치지 않도록)
-        else if (gameState.attackCountForPassive % 5 === 0) {
-            let lightningDamage = currentStats.attackPower * 3;
-            if (gameState.artifacts.ancientRunestone) {
-                lightningDamage *= 1.25; // 룬스톤 효과
-            }
-            showVfx('vfx-lightning');
-            showDamageText(lightningDamage, 'lightning');
-            totalDamage += lightningDamage;
-        }
-
-        if (gameState.attackCountForPassive >= 10) gameState.attackCountForPassive = 0;
+    // 1초마다 실제 공격 횟수 UI 업데이트
+    if (now >= lastSecondTimestamp + 1000) {
+        const realApsDisplay = document.getElementById('summary-real-attack-speed-display');
+        if (realApsDisplay) realApsDisplay.textContent = attacksThisSecond;
+        attacksThisSecond = 0;
+        lastSecondTimestamp = now;
     }
 
-    // --- 보스전 또는 일반 사냥 처리 ---
-    if (gameState.currentBoss) {
-        const bossZone = bosses[gameState.currentBoss.id].zone;
-        const killsInZone = gameState.materials.monsterKillsByZone[bossZone];
-        const requiredKills = 100 * (gameState.prestigeLevel + 1);
-
-        // 지역 정복 조건 확인
-        if (killsInZone >= requiredKills) {
-            // 지역 정복 보너스: 100마리당 10% 추가 데미지
-            const conquestBonusMultiplier = 1 + (Math.floor(killsInZone / 100) * 0.1);
-            let finalBossDamage = totalDamage;
-
-            if (conquestBonusMultiplier > 1) {
-                finalBossDamage *= conquestBonusMultiplier;
-            }
-
-            let fragmentBonusDamage = 0;
-            // 차원의 파편 보너스 추가 (차원 포식자에게만 적용)
-            if (gameState.currentBoss.id === 'dimensionEater' && gameState.materials.dimensionalFragment > 0) {
-                const fragmentBonus = 1 + (gameState.materials.dimensionalFragment * 0.002);
-                const baseDamageForFragment = finalBossDamage; // 파편 보너스가 적용되기 전의 데미지
-                fragmentBonusDamage = baseDamageForFragment * (fragmentBonus - 1); // 순수 추가 데미지만 계산
-                finalBossDamage += fragmentBonusDamage; // 최종 데미지에 합산
-                showDamageText(fragmentBonusDamage, 'dimensionalFragment'); // 추가 데미지를 별도로 표시
-            }
-            gameState.currentBoss.hp -= finalBossDamage;
-            // 보스에게 입힌 피해량의 1/100만큼 영혼 파편 획득 (이전 요청에서 1/100로 수정됨)
-            gameState.soulShards += (finalBossDamage - fragmentBonusDamage) / 100; // 파편 추가 데미지는 영혼 획득에서 제외
-
-            // 보스에게 입힌 최종 데미지를 표시
-            showDamageText(finalBossDamage, isCrit ? 'crit' : 'normal');
-
-        } else {
-            // 조건 불만족: 데미지 0, 메시지 표시
-            addLogMessage(`[${zones[bossZone].name}] 지역의 몬스터를 ${requiredKills}마리 처치해야 보스에게 피해를 줄 수 있습니다! (${killsInZone}/${requiredKills})`, 'error');
-        }
-
-        if (gameState.currentBoss.hp <= 0) {
-            const bossId = gameState.currentBoss.id;
-            const bossData = bosses[bossId];
-            addLogMessage(`🏆 ${bossData.name}을(를) 처치했습니다!`, 'special');
-
-            // 보스 처치 효과음 재생
-            playSoundEffect('bossDefeat');
-
-            // 보상 지급
-            const prestigeMultiplier = 1 + gameState.prestigeLevel;
-            let soulReward = bossData.reward.soulShards * prestigeMultiplier;
-            // 영혼 수확 및 회차 특전 보너스 적용
-            soulReward *= (1 + (gameState.soulReapLevel * 0.05));
-            gameState.soulShards += soulReward;
-            addLogMessage(`영혼의 파편 +${bossData.reward.soulShards}`, 'special');
-            for (const material in bossData.reward.materials) {
-                gameState.materials[material] += bossData.reward.materials[material];
-                addLogMessage(`[${material}] +${bossData.reward.materials[material]}`, 'special');
-                checkAndApplyOffering(material); // 보스 재료 획득 시 자동 제물 확인
-            }
-
-            gameState.bosses[bossId].isDefeated = true;
-
-            // 보스 처치 시 타이머 중지
-            if (gameState.currentBoss.timerId) {
-                clearTimeout(gameState.currentBoss.timerId);
-            }
-            if (gameState.currentBoss.intervalId) {
-                clearInterval(gameState.currentBoss.intervalId);
-            }
-
-
-            // 최종 보스 처치 시 엔딩 처리
-            if (bossId === 'dimensionEater') {
-                gameState.isGameFinished = true;
-                stopGameLoop(); // 게임 루프를 즉시 중지합니다.
-                playZoneMusic('ending'); // 엔딩 음악 재생
-                saveGame(); // 마지막 상태 저장
-                showEnding(); // 그 후 엔딩 화면을 표시합니다.
-            } else {
-                // 보스전이 끝났으므로 현재 지역의 음악으로 되돌립니다.
-                playZoneMusic(gameState.currentZone);
-            }
-
-            gameState.currentBoss = null;
-        }
-    } else {
-        // 일반 몬스터 사냥
-        currentMonster.hp -= totalDamage;
-
-        // 일반 몬스터에게 입힌 데미지를 표시
-        showDamageText(totalDamage, isCrit ? 'crit' : 'normal');
-
-        // 일반 공격 효과음 재생 (치명타가 아닐 때)
-        // if (!isCrit) playSoundEffect('swordSlash');
-
-        if (currentMonster.hp <= 0) {
-            // 몬스터 처치 횟수 기록
-            if (gameState.materials.monsterKillsByZone[gameState.currentZone] !== undefined) {
-                gameState.materials.monsterKillsByZone[gameState.currentZone]++;
-            }
-
-            const activeZone = zones[gameState.currentZone];
-            const monsterMaxHp = activeZone.monsterHp * (1 + (gameState.prestigeLevel * 0.5));
-            // 몬스터의 실제 최대 체력에 비례하여 보상 지급
-            let soulReward = monsterMaxHp + (totalDamage/10000); // 기본 보상 비율 조정
-            // 영혼 수확 및 회차 특전 보너스 적용
-            soulReward *= (1 + (currentStats.soulReapLevel * 0.5)); // 유효 영혼 수확 레벨 사용
-            soulReward *= (1 + gameState.prestigeLevel);
-            showLootText(soulReward, 'soulShards');
-            gameState.soulShards += soulReward;
-            triggerAnimation('soul-shards-count', 'pulse-animation');
-
-            // 재료 드랍
-            let currentDropChance = activeZone.dropChance * (1 + (gameState.prestigeLevel * 0.005));
-            if (gameState.isLuckPotionActive) {
-                currentDropChance *= 1.5; // 행운 물약 효과
-            }
-            // 행운의 편자 유물 효과
-            if (gameState.artifacts.luckyHorseshoe) {
-                currentDropChance += 0.05;
-            }
-            if (activeZone.material && Math.random() < currentDropChance) {
-                gameState.materials[activeZone.material]++;
-                showLootText(1, activeZone.material);
-                triggerAnimation(`${activeZone.material}-count`, 'pulse-animation');
-            }
-
-            // 몬스터 리스폰
-            triggerAnimation('monster-container', 'monster-death-animation');
-            setTimeout(() => {
-                const monsterMaxHp = activeZone.monsterHp * (1 + (gameState.prestigeLevel * 0.5));
-                currentMonster.hp = monsterMaxHp;
-                triggerAnimation('monster-container', 'monster-spawn-animation');
-            }, 400); // 0.4초 후 리스폰
-        }
-    }
-    
     updateDisplay();
 }
 
@@ -1733,6 +1696,77 @@ function startGameLoop() {
     // 16ms(약 60fps)마다 게임 상태를 확인하고 공격을 실행합니다.
     // 실제 공격 간격은 runGameLoop 내부에서 제어되므로, 이 방식이 더 정확하고 안정적입니다.
     gameLoopIntervalId = setInterval(runGameLoop, 16);
+}
+function handleBossDefeat() {
+    const bossId = gameState.currentBoss.id;
+    const bossData = bosses[bossId];
+    addLogMessage(`🏆 ${bossData.name}을(를) 처치했습니다!`, 'special');
+
+    playSoundEffect('bossDefeat');
+
+    const prestigeMultiplier = 1 + gameState.prestigeLevel;
+    let soulReward = bossData.reward.soulShards * prestigeMultiplier;
+    soulReward *= (1 + (gameState.soulReapLevel * 0.05));
+    gameState.soulShards += soulReward;
+    addLogMessage(`영혼의 파편 +${formatNumber(bossData.reward.soulShards)}`, 'special');
+    for (const material in bossData.reward.materials) {
+        gameState.materials[material] += bossData.reward.materials[material];
+        addLogMessage(`[${itemDisplayNames[material] || material}] +${bossData.reward.materials[material]}`, 'special');
+        checkAndApplyOffering(material);
+    }
+
+    gameState.bosses[bossId].isDefeated = true;
+
+    if (gameState.currentBoss.timerId) clearTimeout(gameState.currentBoss.timerId);
+    if (gameState.currentBoss.intervalId) clearInterval(gameState.currentBoss.intervalId);
+
+    if (bossId === 'dimensionEater') {
+        gameState.isGameFinished = true;
+        stopGameLoop();
+        playZoneMusic('ending');
+        saveGame();
+        showEnding();
+    } else {
+        playZoneMusic(gameState.currentZone);
+    }
+
+    gameState.currentBoss = null;
+}
+
+function handleMonsterDefeat(currentStats, totalDamage) {
+    if (gameState.materials.monsterKillsByZone[gameState.currentZone] !== undefined) {
+        gameState.materials.monsterKillsByZone[gameState.currentZone]++;
+    }
+
+    const activeZone = zones[gameState.currentZone];
+    const monsterMaxHp = activeZone.monsterHp * (1 + (gameState.prestigeLevel * 0.5));
+    let soulReward = monsterMaxHp + (totalDamage / 10000);
+    soulReward *= (1 + (currentStats.soulReapLevel * 0.5));
+    soulReward *= (1 + gameState.prestigeLevel);
+    showLootText(soulReward, 'soulShards');
+    gameState.soulShards += soulReward;
+    triggerAnimation('soul-shards-count', 'pulse-animation');
+
+    let currentDropChance = activeZone.dropChance * (1 + (gameState.prestigeLevel * 0.005));
+    if (gameState.isLuckPotionActive) {
+        currentDropChance *= 1.5;
+    }
+    if (gameState.artifacts.luckyHorseshoe) {
+        currentDropChance += 0.05;
+    }
+    if (activeZone.material && Math.random() < currentDropChance) {
+        gameState.materials[activeZone.material]++;
+        showLootText(1, activeZone.material);
+        triggerAnimation(`${activeZone.material}-count`, 'pulse-animation');
+    }
+
+    triggerAnimation('monster-container', 'monster-death-animation');
+    setTimeout(() => {
+        if (gameState.currentBoss) return; // 몬스터가 죽는 애니메이션 중에 보스전이 시작되면 리스폰하지 않음
+        const newMonsterMaxHp = zones[gameState.currentZone].monsterHp * (1 + (gameState.prestigeLevel * 0.5));
+        currentMonster.hp = newMonsterMaxHp;
+        triggerAnimation('monster-container', 'monster-spawn-animation');
+    }, 400);
 }
 
 function showEnding() {
@@ -1889,6 +1923,7 @@ function initializeGame() {
     lastAttackTime = Date.now();
 
     initializeIcons();
+    initializeFloatingTextSettings();
     updateDisplay();
     applyCombatUiVisibility(); // UI 숨김 상태 적용
 
@@ -2210,11 +2245,6 @@ function calculateDps(stats, interval, aps) {
     
     let baseAttack = currentStats.attackPower;
     const avgCritDamage = baseAttack * (1 + currentStats.critChance * (currentStats.critDamage - 1));
-    let poisonDps = currentStats.poisonLevel * 2;
-    if (gameState.isPoisonEvolved) {
-        poisonDps += baseAttack * (currentStats.poisonLevel / 100);
-    }
-    const curseDps = currentStats.curseDamage;
     
     // 진화 스킬 DPS 계산 (스킬 피해량 / 발동 주기(초))
     let evolutionSkillDps = 0;
@@ -2238,7 +2268,14 @@ function calculateDps(stats, interval, aps) {
         evolutionSkillDps += (frostbiteDamage / 7) * attacksPerSecondNum;
     }
 
-    let totalDps = (avgCritDamage * attacksPerSecondNum) + poisonDps + curseDps + evolutionSkillDps;
+    // 독/저주 DPS는 공격력과 별개로 초당 적용되므로, 공격 횟수와 곱하지 않습니다.
+    let poisonDps = currentStats.poisonLevel * 2;
+    if (gameState.isPoisonEvolved) {
+        poisonDps += baseAttack * (currentStats.poisonLevel / 100);
+    }
+    const curseDps = currentStats.curseDamage;
+
+    let totalDps = (avgCritDamage * attacksPerSecondNum) + evolutionSkillDps + poisonDps + curseDps;
 
     // 회차 피해량 보너스 적용    
     const prestigeDamageBonus = 1 + (gameState.prestigeLevel * 0.01); // 1% per level

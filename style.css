@@ -980,3 +980,25 @@ button:disabled {
         transform: translate(-50%, -60px); /* 최종 위치를 조정하여 덜 올라가도록 합니다. */
     }
 }
+
+/* 설정 그룹 스타일 */
+.settings-group {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #555;
+    text-align: left;
+}
+
+.settings-group h4 {
+    margin-bottom: 10px;
+    color: #ffc107;
+}
+
+.checkbox-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.checkbox-group label {
+    cursor: pointer;
+}

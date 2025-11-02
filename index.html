@@ -158,6 +158,10 @@
                     <span class="icon" id="summary-icon-attack-speed"></span>
                     <span id="summary-attack-speed-display">1.0</span>
                 </div>
+                <div class="summary-item" data-tooltip="실제 초당 공격 횟수 (1초마다 갱신)">
+                    <span class="icon" id="summary-icon-real-attack-speed"></span>
+                    <span id="summary-real-attack-speed-display">0</span>
+                </div>
             </div>
             <div id="sacrifices-summary-zone" style="display: none;">
                 <div id="sacrifices-summary-list">
@@ -328,7 +332,11 @@
                 <button onclick="openOverlay('guide-overlay')">게임 설명</button>
                 <button onclick="saveGame()">수동 저장</button>
                 <button id="toast-toggle-button" onclick="toggleToastPopups()">토스트 팝업 끄기</button>
-                <button onclick="resetGame()">게임 초기화</button>                
+                <div id="floating-text-settings" class="settings-group">
+                    <h4>플로팅 텍스트 표시 설정</h4>
+                    <!-- 체크박스가 여기에 동적으로 생성됩니다. -->
+                </div>
+                <button onclick="resetGame()">게임 초기화</button>
             </div>
         </div>
     </div>
